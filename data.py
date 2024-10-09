@@ -7,9 +7,15 @@ from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 import numpy as np
 
+
+# Checking CUDA
+
+# print('Using CUDA-------------',torch.cuda.is_available(), torch.cuda.device_count())
+
+
 dataset = load_dataset("dpdl-benchmark/caltech_birds2011")
 
-print('----here', dataset)
+# print('----here', dataset)
 # for example in dataset["train"].select(range(5)):
 #     image = example["image"]  # Adjust based on your dataset's feature names
     
@@ -25,7 +31,7 @@ transform = transforms.Compose(
         transforms.Resize((512, 512)),  # Resize images to 512x512
         transforms.ToTensor(),  # Convert image to PyTorch tensor
         transforms.RandomHorizontalFlip(),
-        # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalize images Images already in range [0,1]
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalize images Images already in range [0,1]
     ]
 )
 
@@ -78,8 +84,9 @@ class BirdGenDataset(Dataset):
             mask = mask.long()  # Ensure mask is long tensor
             return image, label, mask
 
-        # If it's already a PIL image, no need to open it, transform it
+        # If it's already a PIL image, no need to open it, transform it 
         image_tensor = self.transform(image)
+        
         # Check the range
         print("Min pixel value:", torch.min(image_tensor))
         print("Max pixel value:", torch.max(image_tensor))
@@ -92,25 +99,21 @@ class BirdGenDataset(Dataset):
         # inputs = self.processor(text=label, images=images, return_tensors="pt", padding=True)
         # Without text and seg mask
         
-        inputs = self.processor(images=image, return_tensors="pt", padding=True, do_rescale=False)
+        image_inputs = self.processor(images=image, return_tensors="pt", padding=True, do_rescale=False)
 
         # print('inputs', inputs)
         
         with torch.no_grad():
             # outputs = self.clip_model(**inputs)   For both text and image input
-            outputs = self.clip_model.get_image_features(**inputs)    # only for image
-        
-        # print('outputs', outputs)
-        # logits_per_image = outputs.logits_per_image 
-        
-        # print('logits per image', logits_per_image)
-        # transformed image and label tensor data
-        # text_embeddings = outputs.text_embeds  # Shape: [batch_size, embed_dim]
-        image_embeddings = outputs.diag_embed  
+            # text_embeddings = self.clip_model.get_text_features(**text_inputs)
+            image_embeddings = self.clip_model.get_image_features(**image_inputs)
+
+        # Feed embeddings into your diffusion model or other components
+        # diffusion_model_output = diffusion_model(images, text_embeddings, image_embeddings)
 
         print('------text and image embeds',  image_embeddings)
         # return image, text_features, seg_mask
-        return image, image_embeddings
+        return image_tensor, image_embeddings
 
 
 # Wrap Hugging Face dataset into a PyTorch Dataset
@@ -133,12 +136,15 @@ for batch in dataloader:
     # images, labels, seg_mask = batch      # with context 
     
     # without context
-    images, image_embeds = batch
-    image_batch_gpu = images.to(
-        "mps" if torch.backends.mps.is_available() else "cpu"
-    )
+    images_tensor, image_embeds = batch
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+
+    print('----------device', device)
+    image_batch_gpu = images_tensor.to(device)
+    image_embeds_gpu = image_embeds.to(device)
+    # image_batch_gpu = images.to("cuda" if torch.cuda.is_available() else "cpu")
 
     print('batch images shape ',image_batch_gpu.shape)
-    print('images shape', images)
+    print('image embed shape', image_embeds.shape)
 
     break

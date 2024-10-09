@@ -94,6 +94,7 @@ class UnetUp(nn.Module):
 
         # Use the layers to create a sequential model
         self.model = nn.Sequential(*layers)
+        
 
     def forward(self, x, skip):
         # Concatenate the input tensor x with the skip connection tensor along the channel dimension
@@ -113,7 +114,7 @@ class UnetDown(nn.Module):
         layers = [
             ResidualConvBlock(in_channels, out_channels),
             ResidualConvBlock(out_channels, out_channels),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(kernel_size=2),
         ]
 
         # Use the layers to create a sequential model

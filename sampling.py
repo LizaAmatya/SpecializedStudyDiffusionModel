@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from IPython.display import HTML, display
 import tqdm
 from diffusion_utils import *
+import torch.nn.functional as F
 from nn_model import nn_model, save_dir, device, b_t, a_t, ab_t, timesteps, height 
 import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
-from fashiondata import dataloader
 
 def denoise_add_noise(x, t, pred_noise, z=None):
     if z is None:
@@ -17,11 +17,12 @@ def denoise_add_noise(x, t, pred_noise, z=None):
     return mean + noise
 
 # load in model weights and set to eval mode
-print(os.getcwd())
-model_path = os.path.join(save_dir, "model_31.pth")
+print('curr dir', os.getcwd())
+model_path = os.path.join(save_dir + "model_31.pth")
 
+print('model path', model_path)
 nn_model.load_state_dict(
-    torch.load(f=os.path.join(save_dir, "model_31.pth"), map_location=device)
+    torch.load(f=os.path.join(save_dir + "model_31.pth"), map_location=device)
 )
 nn_model.eval()
 print("Loaded in Model")
@@ -54,13 +55,16 @@ def sample_ddpm(n_sample, save_rate=20):
 
 
 # visualize samples
-# plt.clf()
-samples, intermediate_ddpm = sample_ddpm(32)
-    
+samples, intermediate_ddpm = sample_ddpm(5)
+# samples_resized = F.interpolate(
+#     samples, size=(256, 256), mode="bilinear", align_corners=False
+# )
+
+plt.imshow(samples[0].permute(1, 2, 0).cpu().numpy())
 plt.show()
-animation_ddpm = plot_sample(
-    intermediate_ddpm, 32, 4, save_dir, "ani_run", None, save=True
-)
+# animation_ddpm = plot_sample(
+#     intermediate_ddpm, 1, 4, save_dir, "ani_run", None, save=True
+# )
 # display(HTML(animation_ddpm.to_jshtml()))
 
-animation_ddpm.save("animation_ddpm.gif", writer=PillowWriter(fps=5))
+# animation_ddpm.save("animation_ddpm.gif", writer=PillowWriter(fps=5))
