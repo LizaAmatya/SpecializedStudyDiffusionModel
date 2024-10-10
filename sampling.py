@@ -4,11 +4,13 @@ from IPython.display import HTML, display
 import tqdm
 from diffusion_utils import *
 import torch.nn.functional as F
+from helpers import show_image
 from nn_model import nn_model, save_dir, device, b_t, a_t, ab_t, timesteps, height 
 import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
 
+    
 def denoise_add_noise(x, t, pred_noise, z=None):
     if z is None:
         z = torch.randn_like(x)
@@ -18,11 +20,11 @@ def denoise_add_noise(x, t, pred_noise, z=None):
 
 # load in model weights and set to eval mode
 print('curr dir', os.getcwd())
-model_path = os.path.join(save_dir + "model_31.pth")
+model_path = os.path.join(save_dir + "/model_31.pth")
 
 print('model path', model_path)
 nn_model.load_state_dict(
-    torch.load(f=os.path.join(save_dir + "model_31.pth"), map_location=device)
+    torch.load(f=os.path.join(save_dir + "/model_31.pth"), map_location=device)
 )
 nn_model.eval()
 print("Loaded in Model")
@@ -32,7 +34,8 @@ print("Loaded in Model")
 def sample_ddpm(n_sample, save_rate=20):
     # x_T ~ N(0, 1), sample initial noise
     samples = torch.randn(n_sample, 3, height, height).to(device)
-
+    # show_image(samples[0], title="Initial Noise")
+    
     # array to keep track of generated steps for plotting
     intermediate = []
     for i in range(timesteps, 0, -1):
@@ -46,7 +49,9 @@ def sample_ddpm(n_sample, save_rate=20):
 
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
         samples = denoise_add_noise(samples, i, eps, z)
+        
         if i % save_rate == 0 or i == timesteps or i < 8:
+            # show_image(samples[0], title=f"After denoising step {i}")
             intermediate.append(samples.detach().cpu().numpy())
         
 

@@ -1,9 +1,11 @@
+from matplotlib import pyplot as plt
 import torch
 from tqdm import tqdm
 import os
 from data_nocontext import dataloader 
 import torch.nn.functional as F
 
+# from helpers import show_image
 from nn_model import nn_model
 
 
@@ -66,6 +68,8 @@ for ep in range(n_epoch):
     for x in pbar:  # x: images
         optim.zero_grad()
         x = x.to(device)
+        
+        # show_image(x[0], title="Original Image")
 
         # perturb data
         noise = torch.randn_like(x)
@@ -78,14 +82,17 @@ for ep in range(n_epoch):
         # loss is mean squared error between the predicted and true noise
         loss = F.mse_loss(pred_noise, noise)
         loss.backward()
+        print('--- loss',loss)
 
         optim.step()
         epoch_loss += loss.item()
-    
+        
+        print('len of dataloader', len(dataloader))
+        
     avg_loss = epoch_loss / len(dataloader)  # Average loss for the epoch
-    loss_values.append(avg_loss)  # Store loss
+    loss_values.append(loss)  # Store loss
 
-    print(f"Epoch [{ep + 1}/{n_epoch}], Loss: {avg_loss:.4f}")
+    print(f"Epoch [{ep + 1}/{n_epoch}], Loss: {loss:.4f}")
 
     print('losss values', loss_values)
     # save model periodically
@@ -94,3 +101,18 @@ for ep in range(n_epoch):
             os.mkdir(save_dir)
         torch.save(nn_model.state_dict(), save_dir + f"/model_{ep}.pth")
         print("saved model at " + save_dir + f"/model_{ep}.pth")
+
+
+print('all lossess', loss_values)
+# Plot losses
+plt.figure(figsize=(10, 5))
+plt.plot(range(1, len(loss_values) + 1), loss_values, label="Training Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("Training Loss Over Epochs")
+plt.xlim(1, len(loss_values))
+
+# Set y-axis limits based on your expected loss range (optional, adjust accordingly)
+plt.ylim(0, max(loss_values) + 0.1)
+plt.legend()
+plt.show()
