@@ -1,3 +1,4 @@
+import matplotlib
 import torch
 import matplotlib.pyplot as plt
 from IPython.display import HTML, display
@@ -10,8 +11,12 @@ import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
 
+matplotlib.use('Qt5Agg')
     
 def denoise_add_noise(x, t, pred_noise, z=None):
+    print('a_t ab_t, b_t values', a_t, b_t, ab_t)
+    assert not torch.any(torch.isnan(a_t))
+    assert torch.all(a_t > 0)
     if z is None:
         z = torch.randn_like(x)
     noise = b_t.sqrt()[t] * z
@@ -34,7 +39,7 @@ print("Loaded in Model")
 def sample_ddpm(n_sample, save_rate=20):
     # x_T ~ N(0, 1), sample initial noise
     samples = torch.randn(n_sample, 3, height, height).to(device)
-    # show_image(samples[0], title="Initial Noise")
+    show_image(samples[0], title="Initial Noise")
     
     # array to keep track of generated steps for plotting
     intermediate = []
@@ -49,9 +54,12 @@ def sample_ddpm(n_sample, save_rate=20):
 
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
         samples = denoise_add_noise(samples, i, eps, z)
+        print('samples--------',samples)
         
+        show_image(normalize_image(samples[0]), title="denoise add Noise normalizing")
+
         if i % save_rate == 0 or i == timesteps or i < 8:
-            # show_image(samples[0], title=f"After denoising step {i}")
+            show_image(normalize_image(samples[0]), title=f"After denoising step {i}")
             intermediate.append(samples.detach().cpu().numpy())
         
 
@@ -60,16 +68,27 @@ def sample_ddpm(n_sample, save_rate=20):
 
 
 # visualize samples
-samples, intermediate_ddpm = sample_ddpm(5)
+samples, intermediate_ddpm = sample_ddpm(8)
 # samples_resized = F.interpolate(
 #     samples, size=(256, 256), mode="bilinear", align_corners=False
 # )
 
-plt.imshow(samples[0].permute(1, 2, 0).cpu().numpy())
-plt.show()
-# animation_ddpm = plot_sample(
-#     intermediate_ddpm, 1, 4, save_dir, "ani_run", None, save=True
-# )
+# plt.imshow(samples[0].permute(1, 2, 0).cpu().numpy())
+# plt.axis('off')
+# plt.show()
+
+# print('shape',intermediate_ddpm.shape[0])
+# for i in range(intermediate_ddpm.shape[0]):
+#     img = np.moveaxis(intermediate_ddpm[i], 0, -1)
+#     print('image shape', img.shape)
+#     if len(img.shape) == 4:
+#         img = img[:3]
+#     plt.axis('off')
+#     plt.imshow(img)
+#     plt.show()
+animation_ddpm = plot_sample(
+    intermediate_ddpm, 8, 2, save_dir, "/ani_run", 31, save=True
+)
 # display(HTML(animation_ddpm.to_jshtml()))
 
 # animation_ddpm.save("animation_ddpm.gif", writer=PillowWriter(fps=5))

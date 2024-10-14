@@ -14,3 +14,4 @@ git+https://github.com/openai/CLIP.git
 nibabel==5.2.1
 batchgenerators==0.25
 requests==2.32.3
+pyqt5==5.15.11

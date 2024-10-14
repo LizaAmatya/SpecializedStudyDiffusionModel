@@ -5,9 +5,9 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
 
-dataset = load_dataset("dpdl-benchmark/caltech_birds2011")
+dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split="train") #without train split it only shows 2 dataset len so add train split 
 
-# print('----here', dataset)
+print('----here', dataset, len(dataset))
 # for example in dataset["train"].select(range(5)):
 #     image = example["image"]  # Adjust based on your dataset's feature names
     
@@ -52,7 +52,7 @@ class BirdGenDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        data = self.dataset["train"][idx]
+        data = self.dataset[idx]
         image = data["image"]
         
         # image_array = np.array(image)
@@ -75,18 +75,22 @@ class BirdGenDataset(Dataset):
         
         return image_tensor
 
-batch_size = 1
+batch_size = 4
 # Wrap Hugging Face dataset into a PyTorch Dataset
 bird_ds = BirdGenDataset(dataset, transform)    # without seg mask
 
 # print("dataset----", bird_ds[0])  # transformed image and label tensor data
 
 # Create DataLoader to load batches of data
-dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-# Iterate over batches of data -- for training and sampling
+torch.cuda.empty_cache()
+print('memory allocated after dataload', torch.cuda.memory_allocated())
+print('memory reserved', torch.cuda.memory_reserved())
 
-# Unconditional sampling
+# # Iterate over batches of data -- for training and sampling
+# print('len of dataloader',len(dataloader))
+# # Unconditional sampling
 # for batch in dataloader:
 
 #     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")

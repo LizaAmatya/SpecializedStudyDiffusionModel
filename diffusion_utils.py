@@ -230,3 +230,8 @@ def plot_sample(x_gen_store, n_sample, nrows, save_dir, fn, w, save=False):
         ani.save(save_dir + f"{fn}_w{w}.gif", dpi=100, writer=PillowWriter(fps=5))
         print("saved gif at " + save_dir + f"{fn}_w{w}.gif")
     return ani
+
+
+def normalize_image(img):
+    # Normalize to [0,1] range
+    return (img - img.min()) / (img.max() - img.min())
