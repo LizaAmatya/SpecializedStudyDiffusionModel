@@ -20,7 +20,7 @@ print('----here', dataset, len(dataset))
 transform = transforms.Compose(
     [
         # transforms.Grayscale(num_output_channels=3),
-        transforms.Resize((512, 512)),  # Resize images to 512x512
+        transforms.Resize((128, 128)),  # Resize images to 512x512
         transforms.ToTensor(),  # Convert image to PyTorch tensor
         transforms.RandomHorizontalFlip(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5,0.5]),  # Normalize images Images already in range [0,1]
@@ -69,20 +69,20 @@ class BirdGenDataset(Dataset):
         image_tensor = self.transform(image)
         
         # Check the range
-        print("Min pixel value:", torch.min(image_tensor))
-        print("Max pixel value:", torch.max(image_tensor))
-        print("imgae+++++++", image_tensor.shape, type(image_tensor), image_tensor.dtype)
+        # print("Min pixel value:", torch.min(image_tensor))
+        # print("Max pixel value:", torch.max(image_tensor))
+        # print("imgae+++++++", image_tensor.shape, type(image_tensor), image_tensor.dtype)
         
         return image_tensor
 
-batch_size = 4
+batch_size = 8
 # Wrap Hugging Face dataset into a PyTorch Dataset
 bird_ds = BirdGenDataset(dataset, transform)    # without seg mask
 
 # print("dataset----", bird_ds[0])  # transformed image and label tensor data
-
 # Create DataLoader to load batches of data
-dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory=True)
+dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True,pin_memory=
+                        True, num_workers=2, prefetch_factor=2)
 
 torch.cuda.empty_cache()
 print('memory allocated after dataload', torch.cuda.memory_allocated())

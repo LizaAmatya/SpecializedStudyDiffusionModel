@@ -14,13 +14,13 @@ from torchvision.utils import make_grid
 matplotlib.use('Qt5Agg')
     
 def denoise_add_noise(x, t, pred_noise, z=None):
-    print('a_t ab_t, b_t values', a_t, b_t, ab_t)
-    assert not torch.any(torch.isnan(a_t))
-    assert torch.all(a_t > 0)
     if z is None:
         z = torch.randn_like(x)
     noise = b_t.sqrt()[t] * z
     mean = (x - pred_noise * ((1 - a_t[t]) / (1 - ab_t[t]).sqrt())) / a_t[t].sqrt()
+
+    # print('mean', mean)
+    # print('noise----', noise)
     return mean + noise
 
 # load in model weights and set to eval mode
@@ -49,10 +49,13 @@ def sample_ddpm(n_sample, save_rate=20):
         # reshape time tensor
         t = torch.tensor([i / timesteps])[:, None, None, None].to(device)
 
+        print('t tensor', t)
         # sample some random noise to inject back in. For i = 1, don't add back in noise
         z = torch.randn_like(samples) if i > 1 else 0
 
+        print('zzzz', z)
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
+        print('value of eps',eps)
         samples = denoise_add_noise(samples, i, eps, z)
         print('samples--------',samples)
         
