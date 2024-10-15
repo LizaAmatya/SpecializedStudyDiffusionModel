@@ -68,7 +68,6 @@ if not os.path.exists(loss_file_path):
         writer.writerow(['epoch', 'epoch_loss'])
 
 start_epoch = 0
-if os.path.exists() 
 
 for ep in range(n_epoch):
     print(f"epoch {ep}")
