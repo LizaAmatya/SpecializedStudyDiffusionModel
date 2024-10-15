@@ -235,3 +235,44 @@ def plot_sample(x_gen_store, n_sample, nrows, save_dir, fn, w, save=False):
 def normalize_image(img):
     # Normalize to [0,1] range
     return (img - img.min()) / (img.max() - img.min())
+
+
+def save_checkpoint(model, optimizer, epoch, loss, save_dir):
+    checkpoint_name = f"model_epoch_{epoch}.pth"
+    checkpoint_path = os.path.join(save_dir, checkpoint_name)
+    checkpoint = {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "loss": loss,
+    }
+    torch.save(checkpoint, checkpoint_path)
+    print(f"Checkpoint saved at epoch {epoch}: {checkpoint_path}")
+    
+    
+def load_latest_checkpoint(model, optimizer, save_dir):
+    checkpoint_files = [
+        f
+        for f in os.listdir(save_dir)
+        if f.startswith("model_epoch_") and f.endswith(".pth")
+    ]
+    if len(checkpoint_files) == 0:
+        print("No checkpoints found, starting from scratch.")
+        return 0, None  # No checkpoints found
+
+    # Sort checkpoint files by epoch number (assuming format 'model_epoch_{epoch}.pth')
+    checkpoint_files.sort(
+        key=lambda f: int(f.split("_")[-1].split(".")[0])
+    )  # Sorting by epoch number
+    latest_checkpoint = checkpoint_files[-1]  # Get the latest one
+
+    checkpoint_path = os.path.join(save_dir, latest_checkpoint)
+    checkpoint = torch.load(checkpoint_path)
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    epoch = checkpoint["epoch"]
+    loss = checkpoint["loss"]
+
+    print(f"Loaded checkpoint from epoch {epoch} at {checkpoint_path}")
+    return epoch, loss

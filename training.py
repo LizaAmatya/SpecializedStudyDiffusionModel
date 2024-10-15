@@ -7,6 +7,7 @@ from data_nocontext import dataloader
 import torch.nn.functional as F
 from torch.amp import GradScaler
 # from helpers import show_image
+from diffusion_utils import load_latest_checkpoint, save_checkpoint
 from nn_model import nn_model
 import gc
 import pandas as pd
@@ -68,8 +69,9 @@ if not os.path.exists(loss_file_path):
         writer.writerow(['epoch', 'epoch_loss'])
 
 start_epoch = 0
+start_epoch, _ = load_latest_checkpoint(nn_model, optim, save_dir)
 
-for ep in range(n_epoch):
+for ep in range(start_epoch, n_epoch):
     print(f"epoch {ep}")
 
     # linearly decay learning rate
@@ -124,11 +126,11 @@ for ep in range(n_epoch):
 
     # save model periodically
     if ep % 4 == 0 or ep == int(n_epoch - 1):
-    # if ep == int(n_epoch-1):
-        if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
-        torch.save(nn_model.state_dict(), save_dir + f"model_{ep}.pth")
-        print("saved model at " + save_dir + f"model_{ep}.pth")
+        # if not os.path.exists(save_dir):
+        #     os.mkdir(save_dir)
+        # torch.save(nn_model.state_dict(), save_dir + f"model_{ep}.pth")
+        save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
+        # print("saved model at " + save_dir + f"model_{ep}.pth")
 
     torch.cuda.empty_cache()
     gc.collect()
