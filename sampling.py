@@ -139,3 +139,11 @@ samples, intermediate_ddpm = sample_ddpm(1)
 # display(HTML(animation_ddpm.to_jshtml()))
 
 # animation_ddpm.save("animation_ddpm.gif", writer=PillowWriter(fps=5))
+
+from skimage.metrics import structural_similarity as ssim
+
+# Compare generated sample with real image
+real_image = ...
+generated_image = ...
+ssim_score = ssim(real_image, generated_image, multichannel=True)
+print(f"SSIM: {ssim_score}")
