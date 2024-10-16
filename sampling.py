@@ -23,6 +23,17 @@ def denoise_add_noise(x, t, pred_noise, z=None):
     # print('noise----', noise)
     return mean + noise
 
+
+def denoise_ddim(x, t, t_prev, pred_noise):
+    ab = ab_t[t]
+    ab_prev = ab_t[t_prev]
+
+    x0_pred = ab_prev.sqrt() / ab.sqrt() * (x - (1 - ab).sqrt() * pred_noise)
+    dir_xt = (1 - ab_prev).sqrt() * pred_noise
+
+    return x0_pred + dir_xt
+
+
 # load in model weights and set to eval mode
 print('curr dir', os.getcwd())
 model_path = os.path.join(save_dir + "/model_epoch_31.pth")
@@ -66,6 +77,51 @@ def sample_ddpm(n_sample, save_rate=20):
         if i % save_rate == 0 or i == timesteps or i < 8:
             show_image((samples[0]), title=f"After denoising step {i}")
             intermediate.append(samples.detach().cpu().numpy())
+
+    intermediate = np.stack(intermediate)
+    return samples, intermediate
+
+
+# sample quickly using DDIM
+@torch.no_grad()
+def sample_ddim(n_sample, n=20):
+    # x_T ~ N(0, 1), sample initial noise
+    samples = torch.randn(n_sample, 3, height, height).to(device)
+
+    # array to keep track of generated steps for plotting
+    intermediate = []
+    step_size = timesteps // n
+    for i in range(timesteps, 0, -step_size):
+        print(f"sampling timestep {i:3d}", end="\r")
+
+        # reshape time tensor
+        t = torch.tensor([i / timesteps])[:, None, None, None].to(device)
+
+        eps = nn_model(samples, t)  # predict noise e_(x_t,t)
+        samples = denoise_ddim(samples, i, i - step_size, eps)
+        intermediate.append(samples.detach().cpu().numpy())
+
+    intermediate = np.stack(intermediate)
+    return samples, intermediate
+
+
+@torch.no_grad()
+def sample_ddim_context(n_sample, context, n=20):
+    # x_T ~ N(0, 1), sample initial noise
+    samples = torch.randn(n_sample, 3, height, height).to(device)
+
+    # array to keep track of generated steps for plotting
+    intermediate = []
+    step_size = timesteps // n
+    for i in range(timesteps, 0, -step_size):
+        print(f"sampling timestep {i:3d}", end="\r")
+
+        # reshape time tensor
+        t = torch.tensor([i / timesteps])[:, None, None, None].to(device)
+
+        eps = nn_model(samples, t, c=context)  # predict noise e_(x_t,t)
+        samples = denoise_ddim(samples, i, i - step_size, eps)
+        intermediate.append(samples.detach().cpu().numpy())
 
     intermediate = np.stack(intermediate)
     return samples, intermediate
