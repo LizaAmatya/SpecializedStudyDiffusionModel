@@ -162,3 +162,4 @@ cython_debug/
 .idea/
 .DS_Store
 weights/.DS_Store
+weights/bird_ds/all_losses.csv

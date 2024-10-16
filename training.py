@@ -25,8 +25,8 @@ print('memory reserved', torch.cuda.memory_reserved())
 
 # diffusion hyperparameters
 timesteps = 500
-beta1 = 1e-4
-beta2 = 0.02
+beta1 = 1e-5
+beta2 = 0.1
 
 # network hyperparameters
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
@@ -95,7 +95,7 @@ for ep in range(start_epoch, n_epoch):
 
             # loss is mean squared error between the predicted and true noise
             loss = F.mse_loss(pred_noise, noise)
-            all_losses.append(loss.item)
+            all_losses.append(loss.item())
             print('--- loss',loss)
             
         scaler.scale(loss).backward()
