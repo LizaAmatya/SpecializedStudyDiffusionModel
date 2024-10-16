@@ -69,10 +69,10 @@ if not os.path.exists(loss_file_path):
         writer.writerow(['epoch', 'epoch_loss'])
 
 start_epoch = 0
-start_epoch, _ = load_latest_checkpoint(nn_model, optim, save_dir)
+nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, save_dir)
 
 for ep in range(start_epoch, n_epoch):
-    print(f"epoch {ep}")
+    print(f"!!!epoch {ep}!!!")
 
     # linearly decay learning rate
     optim.param_groups[0]["lr"] = lrate * (1 - ep / n_epoch)

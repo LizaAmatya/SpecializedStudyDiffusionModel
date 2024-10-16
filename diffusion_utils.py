@@ -246,7 +246,8 @@ def save_checkpoint(model, optimizer, epoch, loss, save_dir):
         "optimizer_state_dict": optimizer.state_dict(),
         "loss": loss,
     }
-    torch.save(checkpoint, checkpoint_path)
+    with open(checkpoint_path, 'wb') as f:
+        torch.save(checkpoint, f)
     print(f"Checkpoint saved at epoch {epoch}: {checkpoint_path}")
     
     
@@ -258,7 +259,7 @@ def load_latest_checkpoint(model, optimizer, save_dir):
     ]
     if len(checkpoint_files) == 0:
         print("No checkpoints found, starting from scratch.")
-        return 0, None  # No checkpoints found
+        return model, optimizer, 0, None  # No checkpoints found
 
     # Sort checkpoint files by epoch number (assuming format 'model_epoch_{epoch}.pth')
     checkpoint_files.sort(
@@ -275,4 +276,4 @@ def load_latest_checkpoint(model, optimizer, save_dir):
     loss = checkpoint["loss"]
 
     print(f"Loaded checkpoint from epoch {epoch} at {checkpoint_path}")
-    return epoch, loss
+    return model, optimizer, epoch, loss
