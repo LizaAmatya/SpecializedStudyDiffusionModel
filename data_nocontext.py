@@ -85,8 +85,8 @@ dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True,pin_memory=
                         True, num_workers=2, prefetch_factor=2)
 
 torch.cuda.empty_cache()
-print('memory allocated after dataload', torch.cuda.memory_allocated())
-print('memory reserved', torch.cuda.memory_reserved())
+# print('memory allocated after dataload', torch.cuda.memory_allocated())
+# print('memory reserved', torch.cuda.memory_reserved())
 
 # # Iterate over batches of data -- for training and sampling
 # print('len of dataloader',len(dataloader))

@@ -6,7 +6,6 @@ import os
 from data_nocontext import dataloader 
 import torch.nn.functional as F
 from torch.amp import GradScaler
-# from helpers import show_image
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
 from nn_model import nn_model
 import gc
@@ -16,8 +15,6 @@ import pandas as pd
 
 torch.cuda.empty_cache()
 gc.collect()
-print('memory mgmt', torch.cuda.memory_allocated())
-print('memory reserved', torch.cuda.memory_reserved())
 
 # os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
@@ -34,8 +31,6 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mp
 print('----using device---', device)
 save_dir = "weights/bird_ds/"
 
-# training hyperparameters
-# batch_size = 8    #already set in dataloader
 n_epoch = 32
 lrate = 1e-4
 
@@ -50,7 +45,7 @@ os.makedirs(save_dir, exist_ok=True)
 
 # Training
 nn_model.train()
-optim = torch.optim.Adam(nn_model.parameters(), lr=lrate)
+optim = torch.optim.Adam(nn_model.parameters(), lr=lrate, weight_decay=0.0001)
 
 
 # helper function: perturbs an image to a specified noise level
