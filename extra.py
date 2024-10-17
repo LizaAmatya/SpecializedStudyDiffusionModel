@@ -54,47 +54,6 @@ def remove_noise(noisy_images, model, num_steps, device="mps:0"):
 # plt.show()
 
 
-def sample_from_dataset(
-    model, dataloader, num_samples=32, num_steps=100, device="mps:0"
-):
-    model.eval()  # Set the model to evaluation mode
-
-    # Get a batch of real images from the dataset
-    data_iter = iter(dataloader)
-    batch = next(data_iter)
-    images, labels = batch
-    images = images.to("mps" if torch.backends.mps.is_available() else "cpu")
-    # images = images.to(device)  # Fetch a batch of images
-
-    print("imagesss", images)
-    print("dtype", images.dtype, images.shape)
-    # Add noise to the images
-    noisy_images = add_noise(images, num_steps, device=device)
-
-    # Use the model to remove noise
-    # denoised_images = remove_noise(noisy_images, model, num_steps, device=device)
-    samples, intermediate_ddpm = sample_ddpm(32)
-    return denoised_images
-
-
-def plot_images_grid(images_list, title="Images", nrow=8):
-    # if images_list.numel() == 0:
-    #     print("Error: Image tensor is empty!")
-
-    nrow = 8
-    for step, images in enumerate(images_list):
-        plt.figure(figsize=(10, 10))
-        grid = make_grid(images, nrow=nrow, normalize=True, value_range=(0, 1))
-        plt.imshow(grid.permute(1, 2, 0).cpu().numpy())
-        plt.axis("off")
-        plt.title(f"Denoising Step {step}")
-        plt.show()
-
-
-# Visualize the generated samples (replace with your own visualization method)
-plot_images_grid(samples, title="Generated Samples")
-
-
 def create_animation(intermediate_samples, save_path="ddpm_animation.gif"):
     fig, ax = plt.subplots(figsize=(5, 5))
 
@@ -109,3 +68,137 @@ def create_animation(intermediate_samples, save_path="ddpm_animation.gif"):
     # Save the animation as a GIF
     anim.save(save_path, writer=PillowWriter(fps=5))  # Adjust fps as needed
     plt.close(fig)
+
+
+class UNet(nn.Module):
+
+    def __init__(self, c_in=3, c_out=3, time_dim=256):
+
+        super().__init__()
+
+        self.time_dim = time_dim
+
+        self.inc = DoubleConv(c_in, 64)
+
+        self.down1 = Down(64, 128)
+
+        self.sa1 = SelfAttention(128)
+
+        self.down2 = Down(128, 256)
+
+        self.sa2 = SelfAttention(256)
+
+        self.down3 = Down(256, 256)
+
+        self.sa3 = SelfAttention(256)
+
+        self.bot1 = DoubleConv(256, 256)
+
+        self.bot2 = DoubleConv(256, 256)
+
+        self.up1 = Up(512, 128)
+
+        self.sa4 = SelfAttention(128)
+
+        self.up2 = Up(256, 64)
+
+        self.sa5 = SelfAttention(64)
+
+        self.up3 = Up(128, 64)
+
+        self.sa6 = SelfAttention(64)
+
+        self.outc = nn.Conv2d(64, c_out, kernel_size=1)
+
+    def unet_forwad(self, x, t):
+
+        "“Classic UNet structure with down and up branches, self attention in between convs”"
+
+        x1 = self.inc(x)
+
+        x2 = self.down1(x1, t)
+
+        x2 = self.sa1(x2)
+
+        x3 = self.down2(x2, t)
+
+        x3 = self.sa2(x3)
+
+        x4 = self.down3(x3, t)
+
+        x4 = self.sa3(x4)
+
+        x4 = self.bot1(x4)
+
+        x4 = self.bot2(x4)
+
+        x = self.up1(x4, x3, t)
+
+        x = self.sa4(x)
+
+        x = self.up2(x, x2, t)
+
+        x = self.sa5(x)
+
+        x = self.up3(x, x1, t)
+
+        x = self.sa6(x)
+
+        output = self.outc(x)
+
+        return output
+
+    def forward(self, x, t):
+
+        "“Positional encoding of the timestep before the blocks”""
+
+        t = t.unsqueeze(-1)
+
+        t = self.pos_encoding(t, self.time_dim)
+
+        return self.unet_forwad(x, t)
+    
+
+class EMA:
+
+    def __init__(self, beta):
+
+        super().__init__()
+
+        self.beta = beta
+
+        self.step = 0
+
+    def update_model_average(self, ma_model, current_model):
+
+        for current_params, ma_params in zip(current_model.parameters(), ma_model.parameters()):
+
+            old_weight, up_weight = ma_params.data, current_params.data
+
+            ma_params.data = self.update_average(old_weight, up_weight)
+
+    def update_average(self, old, new):
+
+        if old is None:
+
+            return new
+
+        return old * self.beta + (1 - self.beta) * new
+
+    def step_ema(self, ema_model, model, step_start_ema=2000):
+
+        if self.step < step_start_ema:
+
+            self.reset_parameters(ema_model, model)
+
+            self.step += 1
+
+            return
+
+        self.update_model_average(ema_model, model)
+
+        self.step += 1
+
+    def reset_parameters(self, ema_model, model):
+
+        ema_model.load_state_dict(model.state_dict())

@@ -12,6 +12,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
 from diffusers import DDPMScheduler
 
+noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
+
 matplotlib.use('Qt5Agg')
 
 
