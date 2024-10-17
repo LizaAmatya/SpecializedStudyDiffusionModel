@@ -101,10 +101,6 @@ dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True)
 
 for batch in dataloader:
 
-    print('inside loop', batch) 
-    images, labels, seg_mask = batch      # with context 
-    
-    # without context
     image_tensor, image_embeds, text_embeds = batch
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 
