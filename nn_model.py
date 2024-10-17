@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 from diffusion_utils import EmbedFC, ResidualConvBlock, UnetDown, UnetUp
 import os
+import numpy as np
 
 
 class ContextUnet(nn.Module):
     def __init__(
-        self, in_channels, n_feat=256, n_cfeat=10, height=28, clip_embed_dim=512,
+        self, in_channels, n_feat=256, n_cfeat=10, height=128, clip_embed_dim=512,
     ):  # cfeat - context features
         super(ContextUnet, self).__init__()
 
@@ -110,20 +111,22 @@ class ContextUnet(nn.Module):
 # diffusion hyperparameters
 timesteps = 500
 beta1 = 1e-4
-beta2 = 0.1
+beta2 = 0.02
 
 # network hyperparameters
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 
 n_feat = 64  # 64 hidden dimension feature
 n_cfeat = 5  # context vector is of size 5
-height = 64  # 64x64 image
+height = 128  # 64x64 image
 save_dir = "weights/bird_ds"
 
 # construct DDPM noise schedule
 b_t = (beta2 - beta1) * torch.linspace(0, 1, timesteps + 1, device=device) + beta1
+# b_t = (beta2 -beta1 )* torch.tensor([1 + np.cos(np.pi*t/timesteps) for t in range(timesteps+1)], device=device) + beta1
 a_t = 1 - b_t
 ab_t = torch.cumsum(a_t.log(), dim=0).exp()
+# ab_t = torch.cumprod(a_t, dim=0)
 ab_t[0] = 1
 
 # Add clip embeds

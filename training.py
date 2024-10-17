@@ -25,8 +25,8 @@ print('memory reserved', torch.cuda.memory_reserved())
 
 # diffusion hyperparameters
 timesteps = 500
-beta1 = 1e-5
-beta2 = 0.1
+beta1 = 1e-4
+beta2 = 0.02
 
 # network hyperparameters
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
@@ -101,7 +101,7 @@ for ep in range(start_epoch, n_epoch):
         scaler.scale(loss).backward()
        
         if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-            # Clip gradients because gradients exploding and give Nan
+            # Clip gradients because gradients exploding that give Nan
             scaler.unscale_(optim)  # Unscale gradients of model parameters
             torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
             scaler.step(optim)

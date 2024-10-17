@@ -6,7 +6,7 @@ import tqdm
 from diffusion_utils import *
 import torch.nn.functional as F
 from helpers import show_image
-from nn_model import nn_model, save_dir, device, b_t, a_t, ab_t, timesteps, height 
+from nn_model import nn_model, save_dir, device,a_t, ab_t, b_t, timesteps, height 
 import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
@@ -19,8 +19,6 @@ def denoise_add_noise(x, t, pred_noise, z=None):
     noise = b_t.sqrt()[t] * z
     mean = (x - pred_noise * ((1 - a_t[t]) / (1 - ab_t[t]).sqrt())) / a_t[t].sqrt()
 
-    # print('mean!!!!!!', mean)
-    # print('noise----', noise)
     return mean + noise
 
 
@@ -61,21 +59,24 @@ def sample_ddpm(n_sample, save_rate=20):
         print(f"sampling timestep {i:3d}", end="\r")
 
         # reshape time tensor
-        t = torch.tensor([i / timesteps])[:, None, None, None].to(device)
+        t = torch.tensor([i / timesteps], dtype=torch.int)[:, None, None, None].to(device)
 
         # sample some random noise to inject back in. For i = 1, don't add back in noise
         z = torch.randn_like(samples) if i > 1 else 0
-
-        # print('++++++++++zzzz', z)
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
-        # print('++++++++value of eps',eps)
-        samples = denoise_add_noise(samples, i, eps, z)
-        # print('samples--------',samples)
-        
-        # show_image(normalize_image(samples[0]), title="denoise add Noise normalizing")
+        samples = torch.clamp(samples, 0, 1)
+        print('++++++++value of eps',eps.min(), eps.max(), eps.mean().item())
 
-        if i % save_rate == 0 or i == timesteps or i < 8:
-            show_image((samples[0]), title=f"After denoising step {i}")
+        if torch.isnan(eps).any() or torch.isinf(eps).any():
+            print('invalid eps', eps.min(), eps.max())
+
+        samples = denoise_add_noise(samples, i, eps, z)
+        
+        print('samples--------',samples.min().item(), samples.max().item())
+
+        # if i % save_rate == 0 or i == timesteps or i < 8:
+        if i < 8:
+            show_image((samples[0]), title=f"After denoising step {i} with eps mean {eps.mean().item()}")
             intermediate.append(samples.detach().cpu().numpy())
 
     intermediate = np.stack(intermediate)
@@ -91,6 +92,7 @@ def sample_ddim(n_sample, n=20):
     # array to keep track of generated steps for plotting
     intermediate = []
     step_size = timesteps // n
+    print(('step size', step_size))
     for i in range(timesteps, 0, -step_size):
         print(f"sampling timestep {i:3d}", end="\r")
 
@@ -99,6 +101,8 @@ def sample_ddim(n_sample, n=20):
 
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
         samples = denoise_ddim(samples, i, i - step_size, eps)
+        
+        show_image((samples[0]), title=f"After denoising step {i}")
         intermediate.append(samples.detach().cpu().numpy())
 
     intermediate = np.stack(intermediate)
@@ -121,6 +125,7 @@ def sample_ddim_context(n_sample, context, n=20):
 
         eps = nn_model(samples, t, c=context)  # predict noise e_(x_t,t)
         samples = denoise_ddim(samples, i, i - step_size, eps)
+        show_image((samples[0]), title=f"After denoising step {i}")
         intermediate.append(samples.detach().cpu().numpy())
 
     intermediate = np.stack(intermediate)
@@ -128,7 +133,7 @@ def sample_ddim_context(n_sample, context, n=20):
 
 
 # visualize samples
-samples, intermediate_ddpm = sample_ddpm(1)
+samples, intermediate_ddpm = sample_ddim(1)
 # samples_resized = F.interpolate(
 #     samples, size=(256, 256), mode="bilinear", align_corners=False
 # )
@@ -140,10 +145,10 @@ samples, intermediate_ddpm = sample_ddpm(1)
 
 # animation_ddpm.save("animation_ddpm.gif", writer=PillowWriter(fps=5))
 
-from skimage.metrics import structural_similarity as ssim
+# from skimage.metrics import structural_similarity as ssim
 
-# Compare generated sample with real image
-real_image = ...
-generated_image = ...
-ssim_score = ssim(real_image, generated_image, multichannel=True)
-print(f"SSIM: {ssim_score}")
+# # Compare generated sample with real image
+# real_image = ...
+# generated_image = ...
+# ssim_score = ssim(real_image, generated_image, multichannel=True)
+# print(f"SSIM: {ssim_score}")

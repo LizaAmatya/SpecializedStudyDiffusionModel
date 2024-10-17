@@ -13,7 +13,7 @@ import numpy as np
 # print('Using CUDA-------------',torch.cuda.is_available(), torch.cuda.device_count())
 
 
-dataset = load_dataset("dpdl-benchmark/caltech_birds2011")
+dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split='train')
 
 # print('----here', dataset)
 # for example in dataset["train"].select(range(5)):
