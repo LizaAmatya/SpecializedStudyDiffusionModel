@@ -53,20 +53,6 @@ def remove_noise(noisy_images, model, num_steps, device="mps:0"):
 #     ax.axis('off')
 # plt.show()
 
-# create_animation(intermediate_ddpm, save_path="ddpm_animation.gif")
-
-# print("Animation saved as 'ddpm_animation.gif'.")
-
-
-# animation_ddpm = plot_sample(
-#     intermediate_ddpm, 32, 4, save_dir, "ani_run", None, save=False
-# )
-
-# # display(HTML(animation_ddpm.to_jshtml()))
-
-# # animation_ddpm.save("animation_ddpm.gif", writer="pillow")
-# print('-------here end')
-
 
 def sample_from_dataset(
     model, dataloader, num_samples=32, num_steps=100, device="mps:0"
@@ -105,15 +91,6 @@ def plot_images_grid(images_list, title="Images", nrow=8):
         plt.show()
 
 
-# Sample images using the model
-samples = sample_from_dataset(
-    model=nn_model,
-    dataloader=dataloader,
-    num_samples=32,
-    device="mps" if torch.backends.mps.is_available() else "cpu",
-)
-
-
 # Visualize the generated samples (replace with your own visualization method)
 plot_images_grid(samples, title="Generated Samples")
 
@@ -132,88 +109,3 @@ def create_animation(intermediate_samples, save_path="ddpm_animation.gif"):
     # Save the animation as a GIF
     anim.save(save_path, writer=PillowWriter(fps=5))  # Adjust fps as needed
     plt.close(fig)
-
-
-class CustomDataset(Dataset):
-    def __init__(self, sfilename, lfilename, transform, null_context=False):
-        self.sprites = np.load(sfilename)
-        self.slabels = np.load(lfilename)
-        print(f"sprite shape: {self.sprites.shape}")
-        print(f"labels shape: {self.slabels.shape}")
-        self.transform = transform
-        self.null_context = null_context
-        self.sprites_shape = self.sprites.shape
-        self.slabel_shape = self.slabels.shape
-
-    # Return the number of images in the dataset
-    def __len__(self):
-        return len(self.sprites)
-
-    # Get the image and label at a given index
-    def __getitem__(self, idx):
-        # Return the image and label as a tuple
-        if self.transform:
-            image = self.transform(self.sprites[idx])
-            if self.null_context:
-                label = torch.tensor(0).to(torch.int64)
-            else:
-                label = torch.tensor(self.slabels[idx]).to(torch.int64)
-        return (image, label)
-
-    def getshapes(self):
-        # return shapes of data and labels
-        return self.sprites_shape, self.slabel_shape
-
-
-transform = transforms.Compose(
-    [
-        transforms.ToTensor(),  # from [0,255] to range [0.0,1.0]
-        transforms.Normalize((0.5,), (0.5,)),  # range [-1,1]
-    ]
-)
-
-def gen_tst_context(n_cfeat):
-    """
-    Generate test context vectors
-    """
-    vec = torch.tensor(
-        [
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],  # human, non-human, food, spell, side-facing
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],  # human, non-human, food, spell, side-facing
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],  # human, non-human, food, spell, side-facing
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],  # human, non-human, food, spell, side-facing
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],  # human, non-human, food, spell, side-facing
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],
-        ]  # human, non-human, food, spell, side-facing
-    )
-    return len(vec), vec
