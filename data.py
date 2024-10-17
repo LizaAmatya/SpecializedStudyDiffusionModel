@@ -67,6 +67,11 @@ class BirdGenDataset(Dataset):
             mask = self.transform_mask(seg_mask_img)
             mask = mask.long()  # Ensure mask is long tensor
 
+            if len(mask.shape) == 2:
+                mask = mask.unsqueeze(0) 
+                
+        print('mask', mask.shape)
+            
         # If it's already a PIL image, no need to open it, transform it 
         image_tensor = self.transform(image)
         
