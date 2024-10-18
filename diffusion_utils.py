@@ -28,7 +28,8 @@ class ResidualConvBlock(nn.Module):
                 in_channels, out_channels, 3, 1, 1
             ),  # 3x3 kernel with stride 1 and padding 1
             nn.BatchNorm2d(out_channels),  # Batch normalization
-            nn.GELU(),  # GELU activation function
+            # nn.GELU(),  # GELU activation function
+            nn.SiLU()
         )
 
         # Second convolutional layer
@@ -37,7 +38,8 @@ class ResidualConvBlock(nn.Module):
                 out_channels, out_channels, 3, 1, 1
             ),  # 3x3 kernel with stride 1 and padding 1
             nn.BatchNorm2d(out_channels),  # Batch normalization
-            nn.GELU(),  # GELU activation function
+            # nn.GELU(),  # GELU activation function
+            nn.SiLU()
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -126,29 +128,41 @@ class UnetDown(nn.Module):
 
 
 class EmbedFC(nn.Module):
-    def __init__(self, input_dim, emb_dim):
+    def __init__(self, input_dim, emb_dim, activation_fn=nn.GELU(), use_conv=False):
         super(EmbedFC, self).__init__()
         """
         This class defines a generic one layer feed-forward neural network for embedding input data of
         dimensionality input_dim to an embedding space of dimensionality emb_dim.
         """
         self.input_dim = input_dim
-        
-        # define the layers for the network
-        layers = [
-            nn.Linear(input_dim, emb_dim),
-            nn.GELU(),
-            nn.Linear(emb_dim, emb_dim),
-        ]
+        self.use_conv = use_conv
 
+        print('input dim', self.input_dim , emb_dim)
+        if use_conv:
+            # When using Conv2d, we assume the input is a 4D tensor (batch, channels, height, width)
+            layers = [
+                nn.Conv2d(input_dim, emb_dim, kernel_size=3, stride=1, padding=1),
+                activation_fn,
+                nn.Conv2d(emb_dim, emb_dim, kernel_size=3, stride=1, padding=1),
+            ]
+        else:
+            # Use fully connected layers for 1D input data (like text embedding)
+            layers = [
+                nn.Linear(input_dim, emb_dim),
+                activation_fn,
+                nn.Linear(emb_dim, emb_dim),
+            ]
+        
         # create a PyTorch sequential model consisting of the defined layers
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        # flatten the input tensor
-        x = x.view(-1, self.input_dim)
-        # apply the model layers to the flattened tensor
-        return self.model(x)
+        if self.use_conv:
+            return self.model(x)  # For 2D data, apply convolutions
+        else:
+            # Flatten the input tensor if it's 2D
+            x = x.view(-1, self.input_dim)
+            return self.model(x)  # For 1D data, apply FC layers
 
 
 def unorm(x):

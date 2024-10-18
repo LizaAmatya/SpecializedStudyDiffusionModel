@@ -67,10 +67,10 @@ class BirdGenDataset(Dataset):
             mask = self.transform_mask(seg_mask_img)
             mask = mask.long()  # Ensure mask is long tensor
 
-            if len(mask.shape) == 2:
-                mask = mask.unsqueeze(0) 
+            # if len(mask.shape) == 2:
+            #     mask = mask.unsqueeze(0) 
                 
-        print('mask', mask.shape)
+        # print('mask', mask.shape)
             
         # If it's already a PIL image, no need to open it, transform it 
         image_tensor = self.transform(image)
@@ -79,15 +79,15 @@ class BirdGenDataset(Dataset):
         inputs = self.processor(text=label, images=image, return_tensors="pt", padding=True)
         
         text_inputs = inputs['input_ids']
-        image_inputs = inputs['pixel_values']
+        # image_inputs = inputs['pixel_values']
         with torch.no_grad():
             text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
-            image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
+            # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
 
         
-        print('------text and image embeds',  image_embeddings.shape, text_embeddings.shape)
+        # print('------text and image embeds',  image_embeddings.shape, text_embeddings.shape)
        
-        return image_tensor, image_embeddings, text_embeddings
+        return image_tensor, mask, text_embeddings
 
 
 # Wrap Hugging Face dataset into a PyTorch Dataset
@@ -99,20 +99,20 @@ dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True)
 
 # Iterate over batches of data -- for training and sampling
 
-for batch in dataloader:
+# for batch in dataloader:
 
-    image_tensor, image_embeds, text_embeds = batch
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+#     image_tensor, image_embeds, text_embeds = batch
+#     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 
-    image_batch_gpu = image_tensor.to(device)
-    image_embeds_gpu = image_embeds.to(device)
-    text_embeds_gpu = text_embeds.to(device)
+#     image_batch_gpu = image_tensor.to(device)
+#     image_embeds_gpu = image_embeds.to(device)
+#     text_embeds_gpu = text_embeds.to(device)
 
-    print('batch images shape ',image_tensor.shape)
-    print('image embed shape', image_embeds.shape)
-    print('text embed shape', text_embeds.shape)
+#     print('batch images shape ',image_tensor.shape)
+#     print('image embed shape', image_embeds.shape)
+#     print('text embed shape', text_embeds.shape)
 
-    break
+#     break
 
-del image_tensor, text_embeds, image_embeds
-torch.cuda.empty_cache()
+# del image_tensor, text_embeds, image_embeds
+# torch.cuda.empty_cache()
