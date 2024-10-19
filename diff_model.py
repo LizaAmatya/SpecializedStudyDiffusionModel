@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 from diffusion_utils import EmbedFC, ResidualConvBlock, UnetDown, UnetUp
 
 # When attn_dim != n_feat (projection required)
@@ -20,8 +20,9 @@ class AttentionBlock(nn.Module):
        
         # Layer normalization before and after the attention mechanism
         self.norm1 = nn.LayerNorm(attn_dim)  # Normalizing after projection
-        self.norm2 = nn.LayerNorm(n_feat)  # Normalizing after final output
-
+        # self.norm2 = nn.LayerNorm(n_feat)  # Normalizing after final output
+        self.norm2 = nn.BatchNorm2d(n_feat)     #Normalize after final output for 4D tensors
+        
     def forward(self, x):
         batch_size, channels, height, width = x.shape
 
@@ -38,6 +39,9 @@ class AttentionBlock(nn.Module):
 
         # Apply attention mechanism
         attn_output, _ = self.attn(x_proj, x_proj, x_proj)
+        print(
+            "attn output 111-----", attn_output.shape
+        )
 
         # Map the output back to original feature space (n_feat)
         attn_output = self.fc(attn_output)
@@ -46,9 +50,12 @@ class AttentionBlock(nn.Module):
         attn_output = attn_output.permute(0, 2, 1).view(
             batch_size, channels, height, width
         )
+        
+        # print("attn output----- original shape", attn_output.shape)
 
-        # Apply LayerNorm after attention
+        # Apply LayerNorm after attention used batch norm for 4D tensor
         attn_output = self.norm2(attn_output)
+        print("attn output----- layer norm", attn_output.shape, attn_output.mean(), attn_output.std())
 
         return attn_output
 
@@ -81,7 +88,6 @@ class ContextUnet(nn.Module):
         self.text_embedding_layer = EmbedFC(
             text_embed_dim, n_feat * 2, activation_fn=nn.GELU()
         )
-        print('seg mask dim', seg_mask_dim)
         self.segmentation_embedding_layer = EmbedFC(
             1, seg_mask_dim, activation_fn=nn.SiLU(), use_conv=True 
         ) # For image seg masks 2d images for context use this with Conv2d layer -- and input dim = 1 for grayscale
@@ -93,10 +99,10 @@ class ContextUnet(nn.Module):
         # Initialize the down-sampling path of the U-Net with two levels
         self.down1 = UnetDown(
             n_feat, n_feat
-        )  # down1 #[10, 256, 8, 8]     torch.Size([3, 64, 256, 256])
+        ) 
         self.down2 = UnetDown(
             n_feat, 2 * n_feat
-        )  # down2 #[10, 256, 4,  4]    torch.Size([3, 128, 128, 128])
+        )  
 
         # original: self.to_vec = nn.Sequential(nn.AvgPool2d(7), nn.GELU())
         self.to_vec = nn.Sequential(nn.Identity(), nn.GELU())
@@ -138,9 +144,14 @@ class ContextUnet(nn.Module):
 
         # pass the input image through the initial convolutional layer
         x = self.init_conv(x)
+        x = self.to_vec(x)      # Apply activation function
+        # print('x shape', x.shape)
+        
         # pass the result through the down-sampling path
-        down1 = self.down1(x)  # [10, 256, 8, 8]
-        down2 = self.down2(down1)  # [10, 256, 4, 4]
+        down1 = self.down1(x)  
+        print('down 1 shape', down1.shape)
+        down2 = self.down2(down1)  #[16, 128, 32, 32]
+        print('down2 shape', down2.shape)
         
         # Embed the text and segmentation mask
         text_embedding = self.text_embedding_layer(text_input).view(
@@ -149,13 +160,10 @@ class ContextUnet(nn.Module):
         print('seg input', seg_input.shape, self.n_feat)
         seg_input = seg_input.float()   # mismatch in bias type and input type (was long)
         seg_embedding = self.segmentation_embedding_layer(seg_input)
-        # .view(
-        #     -1, self.n_feat * 2, 1, 1
-        # )  # Adjust this dimension to match what the conv layer expects
         print('seg embeds', seg_embedding.shape)
 
         # convert the feature maps to a vector and apply an activation
-        # hiddenvec = self.to_vec(down2)  
+        down2 = self.to_vec(down2)  
 
         t = t.unsqueeze(1).float()
         # print("Shape of t before embedding-----:", t.shape)
@@ -165,23 +173,55 @@ class ContextUnet(nn.Module):
 
         temb1 = self.timeembed1(t).view(-1, self.n_feat * 2, 1, 1)
         # Testing without temb2 see the impact on training and use elsewhere
-        temb2 = self.timeembed2(t).view(-1, self.n_feat, 1, 1)
-        # print(f"uunet forward: temb1 {temb1.shape}. temb2 {temb2.shape} , text {text_embedding.shape}. seg_emb {seg_embedding.shape}")
+        # temb2 = self.timeembed2(t).view(-1, self.n_feat, 1, 1)
         
         # Combine embeddings
-        print('all embeds dim', text_embedding.shape, seg_embedding.shape, temb1.shape, temb2.shape)
+        # print('all embeds dim', text_embedding.shape, seg_embedding.shape, temb1.shape, temb2.shape)
         combined_embeds = text_embedding + seg_embedding + temb1 
-
-        # Attention mechanism applied after combining embeddings
-        attn_output = self.attn_block(combined_embeds)
         
-        up1 = self.up0(down2)
-        up2 = self.up1(attn_output* up1, down2)
-        up3 = self.up2(attn_output * up2, down1)
+        # print('combined embeds', combined_embeds.shape)
+        
+        # Downsample the combined embeddings too big for memory consumption when passed to attn block
+        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1)
+        combined_embeds_downsampled = downsample_layer(combined_embeds)  # Reduce spatial dimensions
+
+        # print('downsampled layer', combined_embeds_downsampled.shape)
+        # Apply attention mechanism after downsampling
+        attn_output = self.attn_block(combined_embeds_downsampled)
+        
+        print('attn output', attn_output.shape)
+
+        # Upsample down2 to solve mismatch in dim during up2
+        up_down2 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2)(down2)
+        
+        up1 = self.up0(attn_output)
+        print(f'up1 shape {up1.shape}, down1 {down1.shape}, up_down2 {up_down2.shape}, down2 {down2.shape}, combined embeds {combined_embeds_downsampled.shape}')
+        up2 = self.up1(attn_output * up1 + combined_embeds_downsampled, up_down2)
+        
+        attn_out_adjusted = nn.Conv2d(128, 64, kernel_size=1)(attn_output)
+
+        combined_embeds_adjusted = nn.Conv2d(128, 64, kernel_size=1)(
+            combined_embeds_downsampled
+        )
+        print('up2 shape', up2.shape)
+        print('attn out adjusted', attn_out_adjusted.shape)
+        print('combined embeds adjust', combined_embeds_adjusted.shape)
+        
+        # up2_downsampled = F.interpolate(up2, size=(64, 64), mode='bilinear', align_corners=True) #Use Conv2d layer to preserve while downsampling instead of interpolation
+        up2_downsampled = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1)(up2)
+        print('downsampled up2', up2_downsampled.shape)
+        # Combine up2 with the adjusted outputs
+        # If your architecture incorporates an attention mechanism and you want attn_out_adjusted to influence the features in up2, 
+        # then you might use multiplication:
+        combined = up2_downsampled * attn_out_adjusted + combined_embeds_adjusted
+
+        print('combined', combined.shape)
+        up3 = self.up2(combined, down1)
 
         print('up3 tensor shape', up3.shape)
         # Final output
         out = self.out(torch.cat((up3, x), 1))
+        print('self out', out.shape)
         return out
 
 
@@ -197,3 +237,9 @@ model = ContextUnet(
     height=height,
     seg_mask_dim=128
 )
+
+for name, param in model.named_parameters():
+    if param.requires_grad:
+        mean = param.data.mean().item()
+        std = param.data.std().item()
+        print(f"{name} - mean: {mean:.4f}, std: {std:.4f}")

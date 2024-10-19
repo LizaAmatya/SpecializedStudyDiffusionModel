@@ -31,3 +31,15 @@ def cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02, device="cuda
 # Example usage
 timesteps = 1000
 beta_schedule = cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02)
+
+class MonitorParameters:
+    def __init__(self):
+        self.data = []
+
+    def __call__(self, module, input, output):
+        # Get parameters
+        for name, param in module.named_parameters():
+            if param.requires_grad:
+                mean = param.data.mean().item()
+                std = param.data.std().item()
+                self.data.append({"layer": name, "mean": mean, "std": std})
