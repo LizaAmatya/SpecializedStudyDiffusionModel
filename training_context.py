@@ -63,43 +63,52 @@ start_epoch = 0
 nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, save_dir)
 
 
-def train_model(model, data_loader, start_epoch, num_epochs):
+def train_model(nn_model, dataloader, start_epoch, n_epoch):
     for ep in range(start_epoch, n_epoch):
-    print(f"!!!epoch {ep}!!!")
+        print(f"!!!epoch {ep}!!!")
 
-    # linearly decay learning rate
-    optim.param_groups[0]["lr"] = lrate * (1 - ep / n_epoch)
-    epoch_loss = 0.0
-    accumulation_steps = 4
+        # linearly decay learning rate
+        optim.param_groups[0]["lr"] = lrate * (1 - ep / n_epoch)
+        epoch_loss = 0.0
+        accumulation_steps = 4
 
-    pbar = tqdm(dataloader, mininterval=2)
-    for i, x in enumerate(pbar):  # x: images
-        optim.zero_grad()
-        x = x.to(device)
+        pbar = tqdm(dataloader, mininterval=2)
+        for i, (image, seg_mask, text_embed) in enumerate(pbar):
+            print('iamges dataloader', image.shape, seg_mask.shape, text_embed.shape)
+            # Use images, segmentation masks, and text embeddings as inputs
+            t = torch.randn(
+                image.size(0), 1
+            )  # Random time steps for testing (replace as needed)
 
-        # perturb data
-        noise = torch.randn_like(x)
-        t = torch.randint(1, timesteps + 1, (x.shape[0],)).to(device)
-        x_pert = perturb_input(x, t, noise)
-
-        with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
-            # use network to recover noise
-            pred_noise = nn_model(x_pert, t / timesteps)
-
-            # loss is mean squared error between the predicted and true noise
-            loss = F.mse_loss(pred_noise, noise)
-            all_losses.append(loss.item())
-            print('--- loss',loss)
-            
-        scaler.scale(loss).backward()
-       
-        if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-            # Clip gradients because gradients exploding that give Nan
-            scaler.unscale_(optim)  # Unscale gradients of model parameters
-            torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
-            scaler.step(optim)
-            scaler.update()
+            # Forward pass
+            outputs = nn_model(image, t, text_embed, seg_mask)
+        
             optim.zero_grad()
+            x = x.to(device)
+
+            # perturb data
+            noise = torch.randn_like(x)
+            t = torch.randint(1, timesteps + 1, (x.shape[0],)).to(device)
+            x_pert = perturb_input(x, t, noise)
+
+            with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
+                # use network to recover noise
+                pred_noise = nn_model(x_pert, t / timesteps)
+
+                # loss is mean squared error between the predicted and true noise
+                loss = F.mse_loss(pred_noise, noise)
+                all_losses.append(loss.item())
+                print('--- loss',loss)
+                
+            scaler.scale(loss).backward()
+        
+            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
+                # Clip gradients because gradients exploding that give Nan
+                scaler.unscale_(optim)  # Unscale gradients of model parameters
+                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
+                scaler.step(optim)
+                scaler.update()
+                optim.zero_grad()
 
         epoch_loss += loss.item()
 
