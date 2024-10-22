@@ -6,18 +6,30 @@ import tqdm
 from diffusion_utils import *
 import torch.nn.functional as F
 from helpers import show_image
-from nn_model import nn_model, save_dir, device,a_t, ab_t, b_t, timesteps, height 
+# from nn_model import nn_model, save_dir, device
+from diff_model import nn_model, save_dir, device
 import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
-from diffusers import DDPMScheduler
-
-noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
 
 matplotlib.use('Qt5Agg')
 
+timesteps = 500
+n_feat = 64
+batch_size = 16
+in_channels = 3
+height = 128
 
-noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
+beta1 = 1e-4
+beta2 = 0.02
+n_epoch = 32
+lrate = 1e-4
+
+# construct DDPM noise schedule
+b_t = (beta2 - beta1) * torch.linspace(0, 1, timesteps + 1, device=device) + beta1
+a_t = 1 - b_t
+ab_t = torch.cumsum(a_t.log(), dim=0).exp()
+ab_t[0] = 1
     
 def denoise_add_noise(x, t, pred_noise, z=None):
     if z is None:

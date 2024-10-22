@@ -225,21 +225,26 @@ class ContextUnet(nn.Module):
         return out
 
 
+# Hyperparams
+
 n_feat = 64
 batch_size = 16
 in_channels = 3
 height = 128
+device = (
+    torch.device("cuda")
+    if torch.cuda.is_available()
+    else torch.device("mps")
+    if torch.backends.mps.is_available()
+    else torch.device("cpu")
+)
+save_dir = "weights/data_context/"
+
 
 # Instantiate the model
-model = ContextUnet(
+nn_model = ContextUnet(
     in_channels=in_channels,
     n_feat=n_feat,
     height=height,
     seg_mask_dim=128
 )
-
-for name, param in model.named_parameters():
-    if param.requires_grad:
-        mean = param.data.mean().item()
-        std = param.data.std().item()
-        print(f"{name} - mean: {mean:.4f}, std: {std:.4f}")

@@ -29,8 +29,8 @@ def cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02, device="cuda
 
 
 # Example usage
-timesteps = 1000
-beta_schedule = cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02)
+# timesteps = 1000
+# beta_schedule = cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02)
 
 class MonitorParameters:
     def __init__(self):

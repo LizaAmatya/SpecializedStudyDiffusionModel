@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
-import numpy as np
+# import numpy as np
 
 
 dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split='train')
