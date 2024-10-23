@@ -107,7 +107,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 #     print(f'named params {name}, param type {param.dtype}')
                 # Forward pass
                 pred_noise = nn_model(images, t, text_embeds, seg_masks)
-                
+                print('pred noise and noise', pred_noise.shape, noise.shape)
                 # loss is mean squared error between the predicted and true noise
                 loss = F.mse_loss(pred_noise, noise)
                 all_losses.append(loss.item())
@@ -117,6 +117,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f'loss-- {loss}, is inf or nan')
                 continue    # skip iteration if loss invalid
             
+            # scaler.scale(loss).backward()
             loss.backward()
             
             # Optionally, if you want to check gradients after a backward pass
@@ -137,7 +138,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # Clip gradients because gradients exploding that give Nan
                 # scaler.unscale_(optim)  # Unscale gradients of model parameters
-                # torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
+                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
                 optim.step()
                 # scaler.update()
                 optim.zero_grad()
