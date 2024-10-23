@@ -32,6 +32,9 @@ class ResidualConvBlock(nn.Module):
             nn.SiLU()
         )
 
+        # Initialize weights
+        self.apply(self.initialize_weights)
+
         # Second convolutional layer
         self.conv2 = nn.Sequential(
             nn.Conv2d(
@@ -41,6 +44,15 @@ class ResidualConvBlock(nn.Module):
             # nn.GELU(),  # GELU activation function
             nn.SiLU()
         )
+        
+    def initialize_weights(self, module):
+        if isinstance(module, nn.Conv2d):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.BatchNorm2d):
+            nn.init.ones_(module.weight)
+            nn.init.zeros_(module.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # If using residual connection
