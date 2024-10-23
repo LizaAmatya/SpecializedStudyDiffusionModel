@@ -21,7 +21,7 @@ save_dir = "weights/data_context/"
 
 timesteps = 500
 n_feat = 64
-batch_size = 16
+batch_size = 4
 in_channels = 3
 height = 128
 
@@ -40,10 +40,11 @@ ab_t[0] = 1
 os.makedirs(save_dir, exist_ok=True)
 
 # Training
-
+nn_model.train()
 optim = torch.optim.Adam(nn_model.parameters(), lr=lrate, weight_decay=0.0001)
 # helper function: perturbs an image to a specified noise level
 def perturb_input(x, t, noise):
+    t = t.to(torch.long)
     return (
         ab_t.sqrt()[t, None, None, None] * x + (1 - ab_t[t, None, None, None]) * noise
     )
@@ -59,6 +60,10 @@ if not os.path.exists(loss_file_path):
         writer = csv.writer(f)
         writer.writerow(["epoch", "epoch_loss"])
 
+if not os.path.exists(grad_file):
+        grad_writer = csv.writer(grad_file)
+        grad_writer.writerow(['epoch', 'parameter', 'grad_mean', 'grad_std'])  # Header row
+
 start_epoch = 0
 nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, save_dir)
 
@@ -66,15 +71,12 @@ nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, sav
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     # Instantiate the monitor
     monitor = MonitorParameters()
+    grad_stats = {}
 
     # Register hooks to each layer of your model
     for layer in nn_model.children():
         layer.register_forward_hook(monitor)
-  
-    file = open(grad_file, mode='a', newline='')
-    grad_writer = csv.writer(file)
-    grad_writer.writerow(['epoch', 'batch', 'parameter', 'grad_mean', 'grad_std'])  # Header row
-
+    
     for ep in range(start_epoch, n_epoch):
         print(f"!!!epoch {ep}!!!")
 
@@ -88,44 +90,56 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             print('iamges dataloader', images.shape, seg_masks.shape, text_embeds.shape)
             # Use images, segmentation masks, and text embeddings as inputs
             optim.zero_grad()
-            images = images.to(device)
-            seg_masks = seg_masks.to(device)
-            text_embeds = text_embeds.to(device)
+            images = images.to(torch.float16).to(device)
+            seg_masks = seg_masks.to(torch.float16).to(device)
+            text_embeds = text_embeds.to(torch.float16).to(device)
 
+            print(f'images {images.dtype} seg masks {seg_masks.dtype} text embeds {text_embeds.dtype}')
             # perturb data
             noise = torch.randn_like(images)
-            t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
+            t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(torch.float32).to(device)
+            # t_long = t.to(torch.long)
+            print('t dtype and t float',t.dtype)
             x_pert = perturb_input(images, t, noise)
             
             with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
-                  # Forward pass
+                # for name, param in nn_model.named_parameters():
+                #     print(f'named params {name}, param type {param.dtype}')
+                # Forward pass
                 pred_noise = nn_model(images, t, text_embeds, seg_masks)
                 
                 # loss is mean squared error between the predicted and true noise
                 loss = F.mse_loss(pred_noise, noise)
                 all_losses.append(loss.item())
                 pbar.set_postfix(loss=loss.item())
-                
-            scaler.scale(loss).backward()
+            
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f'loss-- {loss}, is inf or nan')
+                continue    # skip iteration if loss invalid
+            
+            loss.backward()
             
             # Optionally, if you want to check gradients after a backward pass
             # Ensure this is after your loss.backward() call
             for name, param in nn_model.named_parameters():
-                if param.requires_grad:
-                    if param.grad is not None:
-                        mean_grad = param.grad.data.mean().item()
-                        std_grad = param.grad.data.std().item()
-                        print(f"{name} grad -- mean: {mean_grad:.4f}, std: {std_grad:.4f}")
-                        
-                        # Save gradient mean and std to the file for each parameter
-                        grad_writer.writerow([ep, i, name, mean_grad, std_grad])
+                if param.requires_grad and param.grad is not None:
+                    if name not in grad_stats: 
+                        grad_stats[name] = {'mean': [], 'std': []}
+                    mean_grad = param.grad.data.mean().item()
+                    std_grad = param.grad.data.std().item()
+                    grad_stats[name]['mean'].append(mean_grad)
+                    grad_stats[name]['std'].append(std_grad)
+
+                    print(f"{name} grad -- mean: {mean_grad:.4f}, std: {std_grad:.4f}")
+                else:
+                    print(f'layer {name} grad is None', param.grad)
 
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # Clip gradients because gradients exploding that give Nan
-                scaler.unscale_(optim)  # Unscale gradients of model parameters
-                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
-                scaler.step(optim)
-                scaler.update()
+                # scaler.unscale_(optim)  # Unscale gradients of model parameters
+                # torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
+                optim.step()
+                # scaler.update()
                 optim.zero_grad()
 
         epoch_loss += loss.item()
@@ -133,15 +147,20 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         del images, seg_masks, text_embeds, loss, x_pert, noise, t
         torch.cuda.empty_cache()
         
-    file.close()    # Close gradient file
-
     with open(loss_file_path, mode='a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([ep+1, epoch_loss/len(pbar)])
         
-        # avg_loss = epoch_loss / len(dataloader)  # Average loss for the epoch
-        # loss_values.append(epoch_loss)  # Store loss
-        # loss_values_cpu = loss_values.detach().cpu().numpy()
+    # Save gradient mean and std to the file for each parameter for each epoch
+    with open(grad_file, mode='a', newline='') as f:
+        grad_writer = csv.writer(f)
+        for name, stats in grad_stats.items():
+            mean_grad = sum(stats['mean']) / len(stats['mean'])
+            std_grad = sum(stats['std']) / len(stats['std'])
+            grad_writer.writerow([ep, name, mean_grad, std_grad])
+
+        grad_stats.clear()  # Clear after each epoch
+        
 
     print(f"Epoch [{ep + 1}/{n_epoch}], Loss: {epoch_loss:.4f}")
 

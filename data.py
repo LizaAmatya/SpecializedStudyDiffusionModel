@@ -93,9 +93,9 @@ class BirdGenDataset(Dataset):
 # Wrap Hugging Face dataset into a PyTorch Dataset
 bird_ds = BirdGenDataset(dataset, transform, transform_mask=transform_mask)
 
-batch_size = 16
+batch_size = 4
 # Create DataLoader to load batches of data
-dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=2, prefetch_factor=2)
 
 # Iterate over batches of data -- for training and sampling
 

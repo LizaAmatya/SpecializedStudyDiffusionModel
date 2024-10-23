@@ -81,7 +81,7 @@ class ContextUnet(nn.Module):
 
         # Timestep embeddings
         self.timeembed1 = EmbedFC(1, 2 * n_feat, activation_fn=nn.GELU())
-        self.timeembed2 = EmbedFC(1, 1 * n_feat, activation_fn=nn.GELU())
+        # self.timeembed2 = EmbedFC(1, 1 * n_feat, activation_fn=nn.GELU())
 
         # Initialize embedding layers
         # self.clip_embedding_layer = nn.Linear(clip_embed_dim, n_feat*2) #No need used text embed layer
@@ -92,7 +92,7 @@ class ContextUnet(nn.Module):
             1, seg_mask_dim, activation_fn=nn.SiLU(), use_conv=True 
         ) # For image seg masks 2d images for context use this with Conv2d layer -- and input dim = 1 for grayscale
         
-        self.attn_block = AttentionBlock(n_feat=n_feat*2, attn_dim=attn_dim, num_heads=8)
+        self.attn_block = AttentionBlock(n_feat=n_feat*2, attn_dim=attn_dim, num_heads=4)
         # Initialize the initial convolutional layer
         self.init_conv = ResidualConvBlock(in_channels, n_feat, is_res=True)
 
@@ -164,6 +164,7 @@ class ContextUnet(nn.Module):
 
         # convert the feature maps to a vector and apply an activation
         down2 = self.to_vec(down2)  
+        print(f'down 2 input dtype and device', down2.device, down2.dtype)
 
         t = t.unsqueeze(1).float()
         # print("Shape of t before embedding-----:", t.shape)
@@ -177,12 +178,14 @@ class ContextUnet(nn.Module):
         
         # Combine embeddings
         # print('all embeds dim', text_embedding.shape, seg_embedding.shape, temb1.shape, temb2.shape)
-        combined_embeds = text_embedding + seg_embedding + temb1 
+        combined_embeds = text_embedding + seg_embedding + temb1
         
-        # print('combined embeds', combined_embeds.shape)
+        # print('combined embeds', combined_embeds.shape, combined_embeds.device, combined_embeds.dtype)
         
         # Downsample the combined embeddings too big for memory consumption when passed to attn block
-        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1)
+        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1).half().to(device)     # float32 to float16 handle mismatch
+        # print(f'layer device -- {next(downsample_layer.parameters()).device}')
+        
         combined_embeds_downsampled = downsample_layer(combined_embeds)  # Reduce spatial dimensions
 
         # print('downsampled layer', combined_embeds_downsampled.shape)
@@ -192,23 +195,22 @@ class ContextUnet(nn.Module):
         print('attn output', attn_output.shape)
 
         # Upsample down2 to solve mismatch in dim during up2
-        up_down2 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2)(down2)
+        up_down2 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2).to(device)(down2)
+        print(f'layer up down2 device -- {up_down2.device}')
         
         up1 = self.up0(attn_output)
         print(f'up1 shape {up1.shape}, down1 {down1.shape}, up_down2 {up_down2.shape}, down2 {down2.shape}, combined embeds {combined_embeds_downsampled.shape}')
         up2 = self.up1(attn_output * up1 + combined_embeds_downsampled, up_down2)
         
-        attn_out_adjusted = nn.Conv2d(128, 64, kernel_size=1)(attn_output)
+        attn_out_adjusted = nn.Conv2d(128, 64, kernel_size=1).to(device)(attn_output)
 
-        combined_embeds_adjusted = nn.Conv2d(128, 64, kernel_size=1)(
-            combined_embeds_downsampled
-        )
+        combined_embeds_adjusted = nn.Conv2d(128, 64, kernel_size=1).to(device)(combined_embeds_downsampled)
         print('up2 shape', up2.shape)
         print('attn out adjusted', attn_out_adjusted.shape)
         print('combined embeds adjust', combined_embeds_adjusted.shape)
         
         # up2_downsampled = F.interpolate(up2, size=(64, 64), mode='bilinear', align_corners=True) #Use Conv2d layer to preserve while downsampling instead of interpolation
-        up2_downsampled = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1)(up2)
+        up2_downsampled = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1).to(device)(up2)
         print('downsampled up2', up2_downsampled.shape)
         # Combine up2 with the adjusted outputs
         # If your architecture incorporates an attention mechanism and you want attn_out_adjusted to influence the features in up2, 
@@ -228,7 +230,7 @@ class ContextUnet(nn.Module):
 # Hyperparams
 
 n_feat = 64
-batch_size = 16
+batch_size = 4
 in_channels = 3
 height = 128
 device = (
@@ -248,3 +250,5 @@ nn_model = ContextUnet(
     height=height,
     seg_mask_dim=128
 )
+
+nn_model.to(torch.float16).to(device)      #mismatch in named params bias and float 16 so converting into float16
