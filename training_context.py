@@ -87,34 +87,31 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
 
         pbar = tqdm(data_loader, mininterval=2)
         for i, (images, seg_masks, text_embeds) in enumerate(pbar):
-            print('iamges dataloader', images.shape, seg_masks.shape, text_embeds.shape)
+            # print('iamges dataloader', images.shape, seg_masks.shape, text_embeds.shape)
             # Use images, segmentation masks, and text embeddings as inputs
             optim.zero_grad()
-            images = images.to(torch.float16).to(device)
-            seg_masks = seg_masks.to(torch.float16).to(device)
-            text_embeds = text_embeds.to(torch.float16).to(device)
+            images = images.to(device)
+            seg_masks = seg_masks.to(device)
+            text_embeds = text_embeds.to(device)
 
-            print(f'images {images.dtype} seg masks {seg_masks.dtype} text embeds {text_embeds.dtype}')
             # perturb data
             noise = torch.randn_like(images)
             t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(torch.float32).to(device)
             # t_long = t.to(torch.long)
-            print('t dtype and t float',t.dtype)
             x_pert = perturb_input(images, t, noise)
             
-            with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
-                # for name, param in nn_model.named_parameters():
-                #     print(f'named params {name}, param type {param.dtype}')
-                # Forward pass
-                pred_noise = nn_model(images, t, text_embeds, seg_masks)
-                print('pred noise and noise', pred_noise.shape, noise.shape)
-                # loss is mean squared error between the predicted and true noise
-                loss = F.mse_loss(pred_noise, noise)
-                all_losses.append(loss.item())
-                pbar.set_postfix(loss=loss.item())
+            # with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
+            # with torch.no_grad():
+            # Forward pass
+            pred_noise = nn_model(images, t, text_embeds, seg_masks)
+            print('pred noise and noise', pred_noise.shape, noise.shape)
+            # loss is mean squared error between the predicted and true noise
+            loss = F.mse_loss(pred_noise, noise)
+            all_losses.append(loss.item())
+            pbar.set_postfix(loss=loss.item())
             
             if torch.isnan(loss) or torch.isinf(loss):
-                print(f'loss-- {loss}, is inf or nan')
+                print(f'!!!!loss-- {loss}, is inf or nan')
                 continue    # skip iteration if loss invalid
             
             # scaler.scale(loss).backward()
@@ -148,27 +145,26 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         del images, seg_masks, text_embeds, loss, x_pert, noise, t
         torch.cuda.empty_cache()
         
-    with open(loss_file_path, mode='a', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow([ep+1, epoch_loss/len(pbar)])
-        
-    # Save gradient mean and std to the file for each parameter for each epoch
-    with open(grad_file, mode='a', newline='') as f:
-        grad_writer = csv.writer(f)
-        for name, stats in grad_stats.items():
-            mean_grad = sum(stats['mean']) / len(stats['mean'])
-            std_grad = sum(stats['std']) / len(stats['std'])
-            grad_writer.writerow([ep, name, mean_grad, std_grad])
+        with open(loss_file_path, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([ep+1, epoch_loss/len(pbar)])
+            
+        # Save gradient mean and std to the file for each parameter for each epoch
+        with open(grad_file, mode='a', newline='') as f:
+            grad_writer = csv.writer(f)
+            for name, stats in grad_stats.items():
+                mean_grad = sum(stats['mean']) / len(stats['mean'])
+                std_grad = sum(stats['std']) / len(stats['std'])
+                grad_writer.writerow([ep, name, mean_grad, std_grad])
 
-        grad_stats.clear()  # Clear after each epoch
-        
+            grad_stats.clear()  # Clear after each epoch
 
-    print(f"Epoch [{ep + 1}/{n_epoch}], Loss: {epoch_loss:.4f}")
+        print(f"Epoch [{ep + 1}/{n_epoch}], Loss: {epoch_loss:.4f}")
 
-    # save model periodically
-    if ep % 4 == 0 or ep == int(n_epoch - 1):
-        save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
-        print("saved model at " + save_dir + f"model_{ep}.pth")
+        # save model periodically
+        if ep % 4 == 0 or ep == int(n_epoch - 1):
+            save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
+            print("saved model at " + save_dir + f"model_{ep}.pth")
 
     torch.cuda.empty_cache()
     gc.collect()

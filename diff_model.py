@@ -183,7 +183,7 @@ class ContextUnet(nn.Module):
         # print('combined embeds', combined_embeds.shape, combined_embeds.device, combined_embeds.dtype)
         
         # Downsample the combined embeddings too big for memory consumption when passed to attn block
-        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1).half().to(device)     # float32 to float16 handle mismatch
+        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1).to(device)     # float32 to float16 handle mismatch
         # print(f'layer device -- {next(downsample_layer.parameters()).device}')
         
         combined_embeds_downsampled = downsample_layer(combined_embeds)  # Reduce spatial dimensions
@@ -251,4 +251,4 @@ nn_model = ContextUnet(
     seg_mask_dim=128
 )
 
-nn_model.to(torch.float16).to(device)      #mismatch in named params bias and float 16 so converting into float16
+nn_model.to(device)      #mismatch in named params bias and float 16 so converting into float16

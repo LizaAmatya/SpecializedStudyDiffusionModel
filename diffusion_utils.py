@@ -47,7 +47,7 @@ class ResidualConvBlock(nn.Module):
         
     def initialize_weights(self, module):
         if isinstance(module, nn.Conv2d):
-            nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+            nn.init.kaiming_uniform_(module.weight, nonlinearity="sigmoid")
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
         elif isinstance(module, nn.BatchNorm2d):
