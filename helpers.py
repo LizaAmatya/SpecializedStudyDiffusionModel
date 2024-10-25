@@ -4,11 +4,14 @@ import torch
 
 def show_image(image_tensor, title=None):
     """Helper function to visualize a single image."""
+
+    print('image tensor', type(image_tensor))
     image = image_tensor.cpu().detach().numpy()
     image = image.transpose(1, 2, 0)  # Convert to HWC format for display
+    print('image', image.shape, image.max(), image.min())
     # Clip the values to [0, 1] range for valid image display
     image = (image - image.min()) / (image.max() - image.min())
-    plt.show(image)
+    plt.imshow(image)
     # plt.imshow((image*0.5 +0.5))  # Normalize to [0, 1] for display
     if title:
         plt.title(title)

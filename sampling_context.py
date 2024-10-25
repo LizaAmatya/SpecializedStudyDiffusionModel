@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from diff_model import nn_model
 from helpers import show_image
+from torch.utils.checkpoint import checkpoint as chkpt
 
 device = (
     torch.device("cuda")
@@ -24,7 +25,7 @@ nn_model.load_state_dict(checkpoint["model_state_dict"])
 nn_model.eval()
 print("Loaded in Model")
 
-def ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.0, device="cuda"):
+def ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.5, device="cuda"):
     """
     DDIM Sampling for a diffusion model.
 
@@ -43,38 +44,53 @@ def ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.0, device=
     x = torch.randn(
         (n_samples, 3, 128, 128), device=device
     )  # Adjust image shape as per your dataset (e.g., 3x128x128)
+    seg_mask = torch.randn((n_samples, 1, 128,128), device=device)
+    text_emb = torch.randn((n_samples, 512), device=device)
 
     # Reverse sampling steps
-    for t in reversed(range(1, timesteps)):
-        t_tensor = torch.full((n_samples,), t, device=device, dtype=torch.long)
+    with torch.autocast(device_type='cuda'):
+        for t in reversed(range(1, timesteps)):
+            t_tensor = torch.full((n_samples,), t, device=device, dtype=torch.long)
 
-        # Predict noise using the neural network
-        pred_noise = nn_model(x, t_tensor / timesteps)
+            # Predict noise using the neural network
+            pred_noise = chkpt(nn_model(x, t_tensor / timesteps, text_emb, seg_mask))
+            print('pred noise', pred_noise)
+            # Calculate x_t_minus_1 (previous step sample)
+            eps = 1e-8
+            alpha_t = alphas_cumprod[t]
+            alpha_t = torch.clamp(alpha_t, eps)
+            alpha_t_prev = alphas_cumprod[t - 1]
+            beta_t = 1 - alpha_t
+            print('vals', alpha_t, beta_t)
+            sigma_t = eta * torch.sqrt(beta_t)
 
-        # Calculate x_t_minus_1 (previous step sample)
-        alpha_t = alphas_cumprod[t]
-        alpha_t_prev = alphas_cumprod[t - 1]
-        beta_t = 1 - alpha_t
-        sigma_t = eta * torch.sqrt(beta_t)
+            print('val of sigma_t', sigma_t)
+            # Compute the next step sample
+            pred_x0 = (x - torch.sqrt(1 - (alpha_t + eps)) * pred_noise) / torch.sqrt(alpha_t+eps)
+            noise = sigma_t * torch.randn_like(x) if t > 1 else torch.zeros_like(x)
 
-        # Compute the next step sample
-        pred_x0 = (x - torch.sqrt(1 - alpha_t) * pred_noise) / torch.sqrt(alpha_t)
-        noise = sigma_t * torch.randn_like(x) if t > 1 else torch.zeros_like(x)
+            print('pred x0', pred_x0)
+            print('noise', noise)
+            # Sample the next step
+            x = torch.sqrt(alpha_t_prev) * pred_x0 + torch.sqrt(1 - alpha_t_prev) * noise
+            
+            show_image(x[0], title=f"After denoising step {t}")
 
-        # Sample the next step
-        x = torch.sqrt(alpha_t_prev) * pred_x0 + torch.sqrt(1 - alpha_t_prev) * noise
-
+            del t_tensor, pred_noise
+            torch.cuda.empty_cache()
     return x
 
 
 # Example usage:
-n_samples = 16
-timesteps = 1000  # Total timesteps used in the model
+n_samples = 1
+timesteps = 500  # Total timesteps used in the model
+beta_start = 1e-4
+beta_end = 0.02
 alphas_cumprod = torch.cumprod(
-    torch.linspace(0.0001, 0.02, timesteps), dim=0
+    torch.linspace(beta_start, beta_end, timesteps), dim=0
 )  # Adjust based on your noise schedule
 
-samples = ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.0)
+samples = ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.5)
 
 
 
