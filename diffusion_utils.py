@@ -12,7 +12,7 @@ from PIL import Image
 
 class ResidualConvBlock(nn.Module):
     def __init__(
-        self, in_channels: int, out_channels: int, is_res: bool = False
+        self, in_channels: int, out_channels: int, is_res: bool = True
     ) -> None:
         super().__init__()
 
@@ -277,7 +277,7 @@ def save_checkpoint(model, optimizer, epoch, loss, save_dir):
     print(f"Checkpoint saved at epoch {epoch}: {checkpoint_path}")
     
     
-def load_latest_checkpoint(model, optimizer, save_dir):
+def load_latest_checkpoint(model, optimizer, save_dir, device='cuda'):
     checkpoint_files = [
         f
         for f in os.listdir(save_dir)
@@ -294,7 +294,7 @@ def load_latest_checkpoint(model, optimizer, save_dir):
     latest_checkpoint = checkpoint_files[-1]  # Get the latest one
 
     checkpoint_path = os.path.join(save_dir, latest_checkpoint)
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])

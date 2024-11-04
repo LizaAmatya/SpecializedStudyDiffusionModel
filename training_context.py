@@ -13,7 +13,7 @@ import pandas as pd
 
 from helpers import MonitorParameters
 
-torch.cuda.empty_cache()
+# torch.cuda.empty_cache()
 gc.collect()
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
@@ -65,8 +65,7 @@ if not os.path.exists(grad_file):
         grad_writer.writerow(['epoch', 'parameter', 'grad_mean', 'grad_std'])  # Header row
 
 start_epoch = 0
-nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, save_dir)
-
+nn_model, optim, start_epoch, loss = load_latest_checkpoint(nn_model, optim, save_dir, device=device)
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     # Instantiate the monitor
@@ -100,22 +99,21 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             # t_long = t.to(torch.long)
             x_pert = perturb_input(images, t, noise)
             
-            # with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
-            # with torch.no_grad():
+            with torch.autocast(device_type='cuda'):        #adding this memory better performance along with scaler as GradScaler
             # Forward pass
-            pred_noise = nn_model(images, t, text_embeds, seg_masks)
-            print('pred noise and noise', pred_noise.shape, noise.shape)
-            # loss is mean squared error between the predicted and true noise
-            loss = F.mse_loss(pred_noise, noise)
-            all_losses.append(loss.item())
-            pbar.set_postfix(loss=loss.item())
+                pred_noise = nn_model(images, t, text_embeds, seg_masks)
+                print('pred noise and noise', pred_noise.shape, noise.shape)
+                # loss is mean squared error between the predicted and true noise
+                loss = F.mse_loss(pred_noise, noise)
+                all_losses.append(loss.item())
+                pbar.set_postfix(loss=loss.item())
+                
+                if torch.isnan(loss) or torch.isinf(loss):
+                    print(f'!!!!loss-- {loss}, is inf or nan')
+                    continue    # skip iteration if loss invalid
             
-            if torch.isnan(loss) or torch.isinf(loss):
-                print(f'!!!!loss-- {loss}, is inf or nan')
-                continue    # skip iteration if loss invalid
-            
-            # scaler.scale(loss).backward()
-            loss.backward()
+            scaler.scale(loss).backward()
+            # loss.backward()
             
             # Optionally, if you want to check gradients after a backward pass
             # Ensure this is after your loss.backward() call
@@ -134,10 +132,10 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
 
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # Clip gradients because gradients exploding that give Nan
-                # scaler.unscale_(optim)  # Unscale gradients of model parameters
+                scaler.unscale_(optim)  # Unscale gradients of model parameters
                 torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
                 optim.step()
-                # scaler.update()
+                scaler.update()
                 optim.zero_grad()
 
         epoch_loss += loss.item()
@@ -194,14 +192,17 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
 # Test forward pass with real data from the data loader
 def test_model(model, data_loader):
     nn_model.eval()
-    with torch.no_grad():
+    with torch.autocast(device_type='cuda'):
         for images, seg_masks, text_embeds in data_loader:
+            images = images.to(device)
+            seg_masks = seg_masks.to(device)
+            text_embeds = text_embeds.to(device)
             print('iamges dataloader', images.shape, seg_masks.shape, text_embeds.shape)
             # Use images, segmentation masks, and text embeddings as inputs
             t = torch.randn(
                 images.size(0), 1
             )  # Random time steps for testing (replace as needed)
-
+            t = t.to(device)
             # Forward pass
             outputs = model(images, t, text_embeds, seg_masks)
 
@@ -211,6 +212,9 @@ def test_model(model, data_loader):
     # model.train()  # Set the model back to training mode
 
 # Run the test
-# test_model(nn_model, dataloader)
+def main():
+    # test_model(nn_model, dataloader)
+    train = train_model(nn_model=nn_model, data_loader=dataloader, start_epoch=0, n_epoch=n_epoch)
 
-train = train_model(nn_model=nn_model, data_loader=dataloader, start_epoch=0, n_epoch=n_epoch)
+if __name__ == '__main__':
+    main()

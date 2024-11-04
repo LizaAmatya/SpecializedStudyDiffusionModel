@@ -104,7 +104,6 @@ class ContextUnet(nn.Module):
             n_feat, 2 * n_feat
         )  
 
-        # original: self.to_vec = nn.Sequential(nn.AvgPool2d(7), nn.GELU())
         self.to_vec = nn.Sequential(nn.Identity(), nn.GELU())
 
         # Initialize the up-sampling path of the U-Net with three levels
@@ -160,7 +159,11 @@ class ContextUnet(nn.Module):
         print('seg input', seg_input.shape, self.n_feat)
         seg_input = seg_input.float()   # mismatch in bias type and input type (was long)
         seg_embedding = self.segmentation_embedding_layer(seg_input)
-        print('seg embeds', seg_embedding.shape)
+        seg_embedding_resized = F.interpolate(
+            seg_embedding, size=(32, 32), mode="bilinear", align_corners=False
+        )
+
+        print("seg embeds", seg_embedding_resized.shape)
 
         # convert the feature maps to a vector and apply an activation
         down2 = self.to_vec(down2)  
@@ -177,49 +180,43 @@ class ContextUnet(nn.Module):
         # temb2 = self.timeembed2(t).view(-1, self.n_feat, 1, 1)
         
         # Combine embeddings
-        # print('all embeds dim', text_embedding.shape, seg_embedding.shape, temb1.shape, temb2.shape)
-        combined_embeds = text_embedding + seg_embedding + temb1
+        print('all embeds dim', text_embedding.shape, seg_embedding.shape, seg_embedding_resized.shape, temb1.shape, down2.shape)
+        combined_embeds = text_embedding + seg_embedding_resized * down2 + temb1
+        print('combined embeds----before', combined_embeds.shape, combined_embeds.device, combined_embeds.dtype)
         
-        # print('combined embeds', combined_embeds.shape, combined_embeds.device, combined_embeds.dtype)
-        
+        # combined_embeds = combined_embeds.view(batch_size, -1, combined_embeds.shape[-2] * combined_embeds.shape[-1])
+
         # Downsample the combined embeddings too big for memory consumption when passed to attn block
-        downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1).to(device)     # float32 to float16 handle mismatch
-        # print(f'layer device -- {next(downsample_layer.parameters()).device}')
+        # downsample_layer = nn.Conv2d(combined_embeds.shape[1], combined_embeds.shape[1], kernel_size=3, stride=2, padding=1).to(device)
+        # # print(f'layer device -- {next(downsample_layer.parameters()).device}')
         
-        combined_embeds_downsampled = downsample_layer(combined_embeds)  # Reduce spatial dimensions
-
-        # print('downsampled layer', combined_embeds_downsampled.shape)
-        # Apply attention mechanism after downsampling
-        attn_output = self.attn_block(combined_embeds_downsampled)
+        # combined_embeds_downsampled = downsample_layer(combined_embeds)  # Reduce spatial dimensions
         
-        print('attn output', attn_output.shape)
-
-        # Upsample down2 to solve mismatch in dim during up2
-        up_down2 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2).to(device)(down2)
-        print(f'layer up down2 device -- {up_down2.device}')
+        # Apply self-attention
+        # attn_output = self.attn_block(combined_embeds_downsampled)
+        attn_output = self.attn_block(combined_embeds) 
+        attn_output = attn_output.view_as(down2)
         
-        up1 = self.up0(attn_output)
-        print(f'up1 shape {up1.shape}, down1 {down1.shape}, up_down2 {up_down2.shape}, down2 {down2.shape}, combined embeds {combined_embeds_downsampled.shape}')
-        up2 = self.up1(attn_output * up1 + combined_embeds_downsampled, up_down2)
+        # print('attn output', attn_output.shape)
         
-        attn_out_adjusted = nn.Conv2d(128, 64, kernel_size=1).to(device)(attn_output)
-
-        combined_embeds_adjusted = nn.Conv2d(128, 64, kernel_size=1).to(device)(combined_embeds_downsampled)
-        print('up2 shape', up2.shape)
-        print('attn out adjusted', attn_out_adjusted.shape)
-        print('combined embeds adjust', combined_embeds_adjusted.shape)
+        up1 = self.up0(attn_output+ down2)
+        # print('up111---', up1.shape)
+        # print(f'up1 shape {up1.shape}, down1 {down1.shape}, up_down2 {up_down2.shape}, down2 {down2.shape}, combined embeds {combined_embeds_downsampled.shape}')
+        # up2 = self.up1(attn_output * up1 + combined_embeds_downsampled, up_down2)
+        down1_resized = F.interpolate(
+            down1,
+            size=(up1.shape[2], up1.shape[3]),
+            mode="bilinear",
+            align_corners=False,
+        )
+        down1_adjusted = nn.Conv2d(
+            down1_resized.shape[1], up1.shape[1], kernel_size=1
+        ).to(device)(down1_resized)
         
-        # up2_downsampled = F.interpolate(up2, size=(64, 64), mode='bilinear', align_corners=True) #Use Conv2d layer to preserve while downsampling instead of interpolation
-        up2_downsampled = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1).to(device)(up2)
-        print('downsampled up2', up2_downsampled.shape)
-        # Combine up2 with the adjusted outputs
-        # If your architecture incorporates an attention mechanism and you want attn_out_adjusted to influence the features in up2, 
-        # then you might use multiplication:
-        combined = up2_downsampled * attn_out_adjusted + combined_embeds_adjusted
-
-        print('combined', combined.shape)
-        up3 = self.up2(combined, down1)
-
+        up2 = self.up1(up1, down1_adjusted)
+        
+        # print("up2 tensor shape", up2.shape, down1.shape, down2.shape)
+        up3 = self.up2(up2, down1)
         print('up3 tensor shape', up3.shape)
         # Final output
         out = self.out(torch.cat((up3, x), 1))
@@ -240,8 +237,8 @@ device = (
     if torch.backends.mps.is_available()
     else torch.device("cpu")
 )
-save_dir = "weights/data_context/"
 
+save_dir = "weights/data_context/"
 
 # Instantiate the model
 nn_model = ContextUnet(
@@ -251,4 +248,4 @@ nn_model = ContextUnet(
     seg_mask_dim=128
 )
 
-nn_model.to(device)      #mismatch in named params bias and float 16 so converting into float16
+nn_model.to(device)     # mismatch in named params bias and float 16 so converting into float16 use .half()

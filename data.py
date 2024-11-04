@@ -1,5 +1,7 @@
 from datasets import load_dataset
 
+from matplotlib import pyplot as plt
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
@@ -23,8 +25,8 @@ transform = transforms.Compose(
 
 transform_mask = transforms.Compose(
     [
-        transforms.Resize((128, 128), interpolation=Image.NEAREST),  # Resize the mask
-        transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
+        transforms.Resize((128, 128)),  # Resize the mask
+        # transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
     ]
 )
 
@@ -65,13 +67,20 @@ class BirdGenDataset(Dataset):
         if self.transform_mask is not None:
             seg_mask_img = data['segmentation_mask']    # seg mask already in grayscale
             mask = self.transform_mask(seg_mask_img)
-            mask = mask.long()  # Ensure mask is long tensor
-
-            # if len(mask.shape) == 2:
-            #     mask = mask.unsqueeze(0) 
-                
-        # print('mask', mask.shape)
+            mask = np.array(mask)
             
+            print('is there any zero', np.any(mask))
+            
+            # plt.imshow(mask, cmap='gray')  # Use 'gray' colormap for masks
+            # plt.show()
+            
+            mask = torch.from_numpy(mask).long()  # Convert to PyTorch tensor and use long data type
+            mask = mask.unsqueeze(0)  # Add a channel dimension
+            
+            # print("Min:", torch.min(mask))
+            # print("Max:", torch.max(mask))
+            # print("Mean:", torch.mean(mask.float()))
+                
         # If it's already a PIL image, no need to open it, transform it 
         image_tensor = self.transform(image)
         
@@ -84,11 +93,10 @@ class BirdGenDataset(Dataset):
             text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
             # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
 
-        
-        # print('------text and image embeds',  image_embeddings.shape, text_embeddings.shape)
+        # print('------text and image embeds',  text_embeddings)
        
         return image_tensor, mask, text_embeddings
-
+    
 
 # Wrap Hugging Face dataset into a PyTorch Dataset
 bird_ds = BirdGenDataset(dataset, transform, transform_mask=transform_mask)
@@ -97,6 +105,15 @@ batch_size = 4
 # Create DataLoader to load batches of data
 dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=2, prefetch_factor=2)
 
+test_dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split="test")
+test_dataloader = DataLoader(
+    bird_ds,
+    batch_size=batch_size,
+    shuffle=True,
+    pin_memory=True,
+    num_workers=2,
+    prefetch_factor=2,
+)
 # Iterate over batches of data -- for training and sampling
 
 # for batch in dataloader:
@@ -114,5 +131,5 @@ dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory
 
 #     break
 
-# del image_tensor, text_embeds, image_embeds
-# torch.cuda.empty_cache()
+    # del image_tensor, text_embeds, image_embeds
+    # torch.cuda.empty_cache()

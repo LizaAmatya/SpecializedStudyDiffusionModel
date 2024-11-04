@@ -4,26 +4,9 @@ import torch.nn.functional as F
 from diff_model import nn_model
 from helpers import show_image
 from torch.utils.checkpoint import checkpoint as chkpt
+from data import test_dataloader
 
-device = (
-    torch.device("cuda")
-    if torch.cuda.is_available()
-    else torch.device("mps")
-    if torch.backends.mps.is_available()
-    else torch.device("cpu")
-)
-save_dir = "weights/data_context/"
 
-# load in model weights and set to eval mode
-print("curr dir", os.getcwd())
-model_path = os.path.join(save_dir + "/model_epoch_31.pth")
-
-print("model path", model_path)
-checkpoint = torch.load(f=model_path, map_location=device)
-
-nn_model.load_state_dict(checkpoint["model_state_dict"])
-nn_model.eval()
-print("Loaded in Model")
 
 def ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.5, device="cuda"):
     """
@@ -90,9 +73,6 @@ alphas_cumprod = torch.cumprod(
     torch.linspace(beta_start, beta_end, timesteps), dim=0
 )  # Adjust based on your noise schedule
 
-samples = ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.5)
-
-
 
 def pndm_sample(nn_model, n_samples, timesteps, alphas_cumprod, device="cuda"):
     """
@@ -108,42 +88,86 @@ def pndm_sample(nn_model, n_samples, timesteps, alphas_cumprod, device="cuda"):
     Returns:
         A batch of generated samples.
     """
+    for batch in test_dataloader:
+        image_tensor, seg_masks, text_embeds = batch
+        seg_mask = seg_masks.to(device)  # Ensure it's on the right device
+        text_emb = text_embeds.to(device)  # Ensure it's on the right device
+        
+        print(text_emb, seg_mask.shape)
+        break
+    
+    seg_mask = seg_mask[0:1]
+    text_emb = text_emb[0:1]
+    
+    print('seg mask', seg_mask, text_emb)
     # Start with pure noise
     x = torch.randn(
         (n_samples, 3, 128, 128), device=device
-    )  # Adjust image shape as per your dataset
-
+    )  * seg_mask # Adding mask for extra context
+    
+    # seg_mask = torch.randn((n_samples, 1, 128,128), device=device)
+    # text_emb = torch.randn((n_samples, 512), device=device)
+    
     # Define step size (can be adjusted for quality vs speed)
-    step_size = timesteps // 4  # Skip 4 steps at a time
+    step_size = timesteps // 10  # Skip 4 steps at a time
 
-    for i, t in enumerate(reversed(range(1, timesteps, step_size))):
-        t_tensor = torch.full((n_samples,), t, device=device, dtype=torch.long)
+    with torch.autocast(device_type='cuda'):
+        for t in reversed(range(1, timesteps, step_size)):
+            t_tensor = torch.full((n_samples,), t, device=device, dtype=torch.long)
 
-        # Predict noise using the neural network
-        pred_noise = nn_model(x, t_tensor / timesteps)
+            # Predict noise using the neural network
+            pred_noise = nn_model(x, t_tensor / timesteps, text_emb, seg_mask)
+            eps = 1e-8
+            # Compute the cumulative product of alpha_t and the previous one
+            alpha_t = alphas_cumprod[t]
+            alpha_t = torch.clamp(alpha_t, eps)
+            alpha_t_prev = (
+                alphas_cumprod[t - step_size] if t - step_size >= 0 else alphas_cumprod[0]
+            )
 
-        # Compute the cumulative product of alpha_t and the previous one
-        alpha_t = alphas_cumprod[t]
-        alpha_t_prev = (
-            alphas_cumprod[t - step_size] if t - step_size >= 0 else alphas_cumprod[0]
-        )
+            # Calculate sigma for noise injection
+            sigma_t = torch.sqrt(1 - alpha_t+eps)
 
-        # Calculate sigma for noise injection
-        sigma_t = torch.sqrt(1 - alpha_t)
+            # Reconstruct the next x using noise prediction
+            pred_x0 = (x - sigma_t * pred_noise) / torch.sqrt(alpha_t)
 
-        # Reconstruct the next x using noise prediction
-        pred_x0 = (x - sigma_t * pred_noise) / torch.sqrt(alpha_t)
-
-        # Use the difference between alpha_t and alpha_t_prev to correct x
-        x = (
-            torch.sqrt(alpha_t_prev) * pred_x0
-            + torch.sqrt(1 - alpha_t_prev) * pred_noise
-        )
-        
-        show_image((samples[0]), title=f"After denoising step {i}")
+            # Use the difference between alpha_t and alpha_t_prev to correct x
+            x = (
+                torch.sqrt(alpha_t_prev) * pred_x0
+                + torch.sqrt(1 - alpha_t_prev) * pred_noise
+            )
+            
+            show_image((x[0]), title=f"After denoising step {t}")
 
     return x
 
 
-# Example usage:
-samples_pndm = pndm_sample(nn_model, n_samples, timesteps, alphas_cumprod)
+def main():
+    # Example usage:
+    # samples = ddim_sample(nn_model, n_samples, timesteps, alphas_cumprod, eta=0.5, device=device)
+    device = (
+    torch.device("cuda")
+    if torch.cuda.is_available()
+    else torch.device("mps")
+    if torch.backends.mps.is_available()
+    else torch.device("cpu")
+    )
+    save_dir = "weights/data_context/"
+
+    # load in model weights and set to eval mode
+    print("curr dir", os.getcwd())
+    model_path = os.path.join(save_dir + "/model_epoch_31.pth")
+
+    print("model path", model_path)
+    checkpoint = torch.load(f=model_path, map_location=device)
+
+    nn_model.load_state_dict(checkpoint["model_state_dict"])
+    nn_model.eval()
+    print("Loaded in Model")
+    
+    samples_pndm = pndm_sample(nn_model, n_samples, timesteps, alphas_cumprod, device=device)
+
+
+if __name__ == "__main__":
+    main()
+    
