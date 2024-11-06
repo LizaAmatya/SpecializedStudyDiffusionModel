@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
+from transformers import CLIPProcessor, CLIPModel, CLIPTextModel
 # import numpy as np
 
 
@@ -45,6 +45,7 @@ class BirdGenDataset(Dataset):
         # self.clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
     
     def __len__(self):
         return len(self.dataset)
@@ -90,8 +91,8 @@ class BirdGenDataset(Dataset):
         print('text inputs', text_inputs.shape)
         # image_inputs = inputs['pixel_values']
         with torch.no_grad():
-            text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
-            # text_embeddings = self.text_encoder(text_inputs).last_hidden_state
+            # text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
+            text_embeddings = self.text_encoder(text_inputs).last_hidden_state
             # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
         print('------text and image embeds',  text_embeddings.shape)
        

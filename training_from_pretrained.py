@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import torch
 from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
-from transformers import CLIPModel
+from transformers import CLIPTextModel
 from tqdm import tqdm
 from data import dataloader
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
@@ -18,7 +18,7 @@ device = (
     else torch.device("cpu")
 )
 
-text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
@@ -60,13 +60,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         for batch in data_loader:
             images, masks, text_emb = batch     # text emb shape: [4,1,512]
             images, masks, text_emb = images.to(device), masks.to(device), text_emb.to(device)
-            
-            text_emb = text_emb.unsqueeze(1)  # Add sequence dimension, shape: [1, 1, 512]
-
-            # Now, expand to match the expected seq_len because positional embeddings not matching input embeds (e.g., 77 for CLIP)
-            # If the text encoder requires a seq_len of 77, you can use:
-            # text_emb = text_emb.expand(-1, 77, -1)  # Now shape: [1, 77, 512]
-            
+                        
             encoder_hidden_states = text_encoder(text_emb).last_hidden_state
             
             latents = vae.encode(images).latent_dist.sample().to(device)
