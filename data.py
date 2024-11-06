@@ -107,7 +107,7 @@ dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory
 test_dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split="test")
 test_dataloader = DataLoader(
     bird_ds,
-    batch_size=4,
+    batch_size=batch_size,
     shuffle=True,
     pin_memory=True,
     num_workers=2,
