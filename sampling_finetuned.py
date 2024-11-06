@@ -25,13 +25,17 @@ def sample_from_controlnet():
     # for image, mask, text_emb in test_dataloader:
     image, mask = image.to(device), mask.to(device)
     
+    mask_rgb = mask.repeat(1, 3, 1, 1)
+
     # Generate images
     with torch.no_grad():
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
         pipe.enable_model_cpu_offload()
 
         generator = torch.manual_seed(0)
-        gen_image = pipe(prompt, num_inference_steps=30, generator=generator, image=mask).images[0]
+        gen_image = pipe(
+            prompt, num_inference_steps=30, generator=generator, image=mask_rgb
+        ).images[0]
 
     os.makedirs("generated_samples", exist_ok=True)
     # for i, gen_image in enumerate(generated_images):
