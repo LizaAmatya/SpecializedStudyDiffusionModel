@@ -1,6 +1,8 @@
 import csv
 import gc
 import os
+from matplotlib import pyplot as plt
+import pandas as pd
 import torch
 from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 from transformers import CLIPTextModel
@@ -89,10 +91,27 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         if ep % 4 == 0 or ep == int(n_epoch - 1):
             save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
             print("saved model at " + save_dir + f"model_{ep}.pth")
-        
+
+    # Plot losses
+    data = pd.read_csv(loss_file_path)
+    plt.figure(figsize=(8, 6))
+    plt.plot(
+        data["epoch"],
+        data["epoch_loss"],
+        marker="o",
+        linestyle="-",
+        color="b",
+        label="Training Loss",
+    )
+    plt.title("Training Loss Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.show()
+
         
 def main():
-    train_model()
+    train_model(nn_model=nn_model, data_loader=dataloader, start_epoch=start_epoch, n_epoch=num_epochs)
 
 
 if __name__ == "__main__":
