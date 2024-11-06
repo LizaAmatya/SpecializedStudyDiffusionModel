@@ -59,13 +59,13 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         
         pbar = tqdm(data_loader, mininterval=2)
         for batch in data_loader:
-            t =torch.randint(1, timesteps + 1)
             images, masks, text_emb = batch
             images, masks, text_emb = (
                 images.to(device).to(dtype=torch.float16),
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
+            t = torch.randint(1, timesteps + 1, (images.shape[0],))
              
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
