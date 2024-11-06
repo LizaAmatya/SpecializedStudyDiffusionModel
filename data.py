@@ -24,7 +24,7 @@ transform = transforms.Compose(
 
 transform_mask = transforms.Compose(
     [
-        transforms.Resize((128, 128)),  # Resize the mask
+        transforms.Resize((256, 256)),  # Resize the mask
         # transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
     ]
 )
