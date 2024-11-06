@@ -28,7 +28,7 @@ height = 128
 beta1 = 1e-4
 beta2 = 0.02
 n_epoch = 32
-lrate = 1e-4
+# lrate = 1e-4
 
 
 # construct DDPM noise schedule
@@ -41,7 +41,22 @@ os.makedirs(save_dir, exist_ok=True)
 
 # Training
 nn_model.train()
-optim = torch.optim.Adam(nn_model.parameters(), lr=lrate, weight_decay=0.0001)
+# Initial learning rates
+optim = torch.optim.Adam(
+    [
+        {"params": nn_model.timeembed1.parameters(), "lr": 1e-4},
+        {"params": nn_model.text_embedding_layer.parameters(), "lr": 1e-4},
+        {"params": nn_model.segmentation_embedding_layer.parameters(), "lr": 1e-4},
+        {"params": nn_model.attn_block.parameters(), "lr": 5e-5},
+        {"params": nn_model.init_conv.parameters(), "lr": 1e-4},
+        {"params": nn_model.down1.parameters(), "lr": 1e-4},
+        {"params": nn_model.down2.parameters(), "lr": 1e-4},
+        {"params": nn_model.up0.parameters(), "lr": 1e-6},
+        {"params": nn_model.up1.parameters(), "lr": 1e-6},
+        {"params": nn_model.up2.parameters(), "lr": 1e-6},
+        {"params": nn_model.out.parameters(), "lr": 1e-6},
+    ]
+)
 # helper function: perturbs an image to a specified noise level
 def perturb_input(x, t, noise):
     t = t.to(torch.long)
@@ -61,7 +76,8 @@ if not os.path.exists(loss_file_path):
         writer.writerow(["epoch", "epoch_loss"])
 
 if not os.path.exists(grad_file):
-        grad_writer = csv.writer(grad_file)
+    with open(grad_file, mode="w", newline="") as f:
+        grad_writer = csv.writer(f)
         grad_writer.writerow(['epoch', 'parameter', 'grad_mean', 'grad_std'])  # Header row
 
 start_epoch = 0
@@ -79,8 +95,12 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
     for ep in range(start_epoch, n_epoch):
         print(f"!!!epoch {ep}!!!")
 
-        # linearly decay learning rate
-        optim.param_groups[0]["lr"] = lrate * (1 - ep / n_epoch)
+        # Adjust the learning rate based on the current epoch for each layer
+        for param_group in optim.param_groups:
+            # Decay learning rate linearly over epochs
+            initial_lr = param_group['lr']
+            param_group['lr'] = initial_lr * (1 - ep / n_epoch) 
+            
         epoch_loss = 0.0
         accumulation_steps = 4
 
@@ -109,7 +129,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 pbar.set_postfix(loss=loss.item())
                 
                 if torch.isnan(loss) or torch.isinf(loss):
-                    print(f'!!!!loss-- {loss}, is inf or nan')
+                    print(f'!!!!loss-- {loss}, is inf or nan------------------')
                     continue    # skip iteration if loss invalid
             
             scaler.scale(loss).backward()
@@ -128,7 +148,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
 
                     print(f"{name} grad -- mean: {mean_grad:.4f}, std: {std_grad:.4f}")
                 else:
-                    print(f'layer {name} grad is None', param.grad)
+                    print(f'!!!!!!!layer {name} grad is None------------------', param.grad)
 
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # Clip gradients because gradients exploding that give Nan
@@ -214,7 +234,8 @@ def test_model(model, data_loader):
 # Run the test
 def main():
     # test_model(nn_model, dataloader)
-    train = train_model(nn_model=nn_model, data_loader=dataloader, start_epoch=0, n_epoch=n_epoch)
+    train = train_model(nn_model=nn_model, data_loader=dataloader, start_epoch=start_epoch, n_epoch=n_epoch)
 
 if __name__ == '__main__':
     main()
+    

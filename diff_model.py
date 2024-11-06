@@ -249,3 +249,4 @@ nn_model = ContextUnet(
 )
 
 nn_model.to(device)     # mismatch in named params bias and float 16 so converting into float16 use .half()
+# print(nn_model)

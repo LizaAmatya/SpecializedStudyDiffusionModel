@@ -17,3 +17,4 @@ requests==2.32.3
 pyqt5==5.15.11
 diffusers==0.31.0
 pytorch-fid
+accelerate
