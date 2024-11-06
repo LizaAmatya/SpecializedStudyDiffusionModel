@@ -26,7 +26,7 @@ controlnet.to(device)
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
 )
-
+pipe.to(device)
 vae = pipe.vae
 
 gc.collect()
@@ -64,9 +64,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
-               
-            # encoder_hidden_states = text_encoder(text_emb, images).last_hidden_state
-            
+            print('images dtype', images.dtype)  # Check if images are in float32 or float16
+            print('params dtype', vae.parameters().__next__().dtype)       
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
             generated_images = nn_model(
