@@ -60,19 +60,16 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         for batch in data_loader:
             images, masks, text_emb = batch
             images, masks, text_emb = images.to(device), masks.to(device), text_emb.to(device)
-            position_embeddings = nn_model.get_position_embeddings()
-
-            # Ensure position embeddings match the sequence length of text_emb
-            position_embeddings = position_embeddings[:text_emb.size(1), :]
-            embeddings = text_emb + position_embeddings
-            encoder_hidden_states = text_encoder(embeddings).last_hidden_state
+            
+            encoder_hidden_states = text_encoder(text_emb).last_hidden_state
             
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
             generated_images = nn_model(
                 latents,
-                encoder_hidden_states=encoder_hidden_states,  # Text embeddings as conditioning
+                encoder_hidden_states=encoder_hidden_states,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
+                guess_mode=True
             )
 
             # Compute loss
