@@ -59,7 +59,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         pbar = tqdm(data_loader, mininterval=2)
         for batch in data_loader:
             images, masks, text_emb = batch
-            images, masks = images.to(device), masks.to(device)
+            images, masks, text_emb = images.to(device), masks.to(device), text_emb.to(device)
             encoder_hidden_states = text_encoder(text_emb).last_hidden_state
             
             latents = vae.encode(images).latent_dist.sample().to(device)
