@@ -52,7 +52,7 @@ def sample_from_controlnet():
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
-            prompt, num_inference_steps=30, generator=generator, image=mask_rgb
+            prompt, num_inference_steps=100, generator=generator, image=mask_rgb
         ).images
 
     for i, gen_image in enumerate(generated_images):
