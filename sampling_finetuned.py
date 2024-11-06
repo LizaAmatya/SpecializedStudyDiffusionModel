@@ -39,7 +39,7 @@ def sample_from_controlnet():
 
     os.makedirs("generated_samples", exist_ok=True)
     # for i, gen_image in enumerate(generated_images):
-    save_image(gen_image, f=os.path.join(save_dir, "gen_images/sample.png"))
+    gen_image.save(os.path.join(save_dir, "gen_images/sample.png"))
         
         
     #     # Get features for FID calculation
