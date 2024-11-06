@@ -45,7 +45,7 @@ class BirdGenDataset(Dataset):
         # self.clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-
+    
     def __len__(self):
         return len(self.dataset)
 
@@ -87,11 +87,12 @@ class BirdGenDataset(Dataset):
         inputs = self.processor(text=label, images=image, return_tensors="pt", padding=True)
         
         text_inputs = inputs['input_ids']
+        print('text inputs', text_inputs.shape)
         # image_inputs = inputs['pixel_values']
         with torch.no_grad():
             text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
+            # text_embeddings = self.text_encoder(text_inputs).last_hidden_state
             # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
-
         print('------text and image embeds',  text_embeddings.shape)
        
         return image_tensor, mask, text_embeddings.long()
@@ -115,10 +116,10 @@ test_dataloader = DataLoader(
 )
 # Iterate over batches of data -- for training and sampling
 
-# def main():
-#     for batch in dataloader:
+def main():
+    for batch in dataloader:
 
-#         image_tensor, image_embeds, text_embeds = batch
+        image_tensor, image_embeds, text_embeds = batch
 
 #     image_batch_gpu = image_tensor.to(device)
 #     image_embeds_gpu = image_embeds.to(device)
@@ -133,5 +134,5 @@ test_dataloader = DataLoader(
     # del image_tensor, text_embeds, image_embeds
     # torch.cuda.empty_cache()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
