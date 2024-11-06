@@ -80,7 +80,7 @@ def sample_from_controlnet():
     print(f"FID Score: {fid_score}")
     # # Log FID score
     with open("fid_log.txt", "a") as f:
-        f.write(f"FID: {fid_score:.4f}\n")
+        f.write(f"v1 - FID: {fid_score:.4f}\n")
 
 def main():
     sample_from_controlnet()
