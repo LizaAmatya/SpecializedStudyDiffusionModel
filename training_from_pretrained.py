@@ -51,6 +51,7 @@ nn_model, optim, start_epoch, loss = load_latest_checkpoint(
 # Training loop
 controlnet.train()
 num_epochs = 32
+timesteps = 500
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     for ep in range(start_epoch, num_epochs):
@@ -58,18 +59,19 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         
         pbar = tqdm(data_loader, mininterval=2)
         for batch in data_loader:
+            t =torch.randint(1, timesteps + 1)
             images, masks, text_emb = batch
             images, masks, text_emb = (
                 images.to(device).to(dtype=torch.float16),
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
-            print('images dtype', images.dtype)  # Check if images are in float32 or float16
-            print('params dtype', vae.parameters().__next__().dtype)       
+             
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
             generated_images = nn_model(
-                latents,
+                sample=latents,
+                timestep=t,
                 encoder_hidden_states=text_emb,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
                 guess_mode=True
