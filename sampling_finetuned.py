@@ -58,6 +58,16 @@ def sample_from_controlnet():
     for i, gen_image in enumerate(generated_images):
         gen_image.save(os.path.join(gen_images, f"sample_{i}.png"))
         
+    def check_image_size(image_path):
+        img = Image.open(image_path)
+        print('image.size', image.size)
+        return img.size  # (width, height)
+
+    real_images_sizes = [check_image_size(os.path.join(real_images_dir, img)) for img in os.listdir(real_images_dir)]
+    gen_images_sizes = [check_image_size(os.path.join(gen_images, img)) for img in os.listdir(gen_images)]
+    
+    if len(set(real_images_sizes)) > 1 or len(set(gen_images_sizes)) > 1:
+        raise ValueError("Not all images have the same size.")
     # Calculate FID
     metrics = calculate_metrics(
         input1=real_images_dir,
