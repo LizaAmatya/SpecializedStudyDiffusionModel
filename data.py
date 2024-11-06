@@ -45,7 +45,7 @@ class BirdGenDataset(Dataset):
         # self.clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
     
     def __len__(self):
         return len(self.dataset)
