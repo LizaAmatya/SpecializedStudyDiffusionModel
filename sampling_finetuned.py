@@ -43,7 +43,7 @@ def sample_from_controlnet():
         img_pil = Image.fromarray(
             img.permute(1, 2, 0).cpu().numpy()
         )  # Convert tensor to PIL image
-        img_pil.save(os.path.join(real_images_dir, f"v1_real_image_{i}.png"))
+        img_pil.save(os.path.join(real_images_dir, f"v2_real_image_{i}.png"))
 
     # Generate images
     with torch.no_grad():
@@ -56,7 +56,7 @@ def sample_from_controlnet():
         ).images
 
     for i, gen_image in enumerate(generated_images):
-        gen_image.save(os.path.join(gen_images, f"v1_sample_{i}.png"))
+        gen_image.save(os.path.join(gen_images, f"v2_sample_{i}.png"))
         
     def check_image_size(image_path):
         img = Image.open(image_path)
