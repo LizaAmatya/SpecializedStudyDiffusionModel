@@ -92,7 +92,7 @@ class BirdGenDataset(Dataset):
             text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
             # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
 
-        # print('------text and image embeds',  text_embeddings)
+        print('------text and image embeds',  text_embeddings.shape)
        
         return image_tensor, mask, text_embeddings.long()
     
@@ -115,10 +115,10 @@ test_dataloader = DataLoader(
 )
 # Iterate over batches of data -- for training and sampling
 
-# for batch in dataloader:
+# def main():
+#     for batch in dataloader:
 
-#     image_tensor, image_embeds, text_embeds = batch
-#     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+#         image_tensor, image_embeds, text_embeds = batch
 
 #     image_batch_gpu = image_tensor.to(device)
 #     image_embeds_gpu = image_embeds.to(device)
@@ -132,3 +132,6 @@ test_dataloader = DataLoader(
 
     # del image_tensor, text_embeds, image_embeds
     # torch.cuda.empty_cache()
+
+# if __name__ == "__main__":
+#     main()
