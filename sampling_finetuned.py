@@ -56,7 +56,7 @@ def sample_from_controlnet():
         ).images
 
     for i, gen_image in enumerate(generated_images):
-        gen_image.save(os.path.join(gen_images, "sample+{i}.png"))
+        gen_image.save(os.path.join(gen_images, f"sample_{i}.png"))
         
     # Calculate FID
     metrics = calculate_metrics(
