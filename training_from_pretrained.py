@@ -65,6 +65,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             masks = masks.repeat(1, 3, 1, 1)    # 1 channel to 3 channel conversion
             print('images shaepe', images.shape)
             print('masks shape---after', masks.shape)
+            print('text emb shapessss-------', text_emb.shape)
             images, masks, text_emb = (
                 images.to(device).to(dtype=torch.float16),
                 masks.to(device).to(dtype=torch.float16),
@@ -79,7 +80,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 timestep=t,
                 encoder_hidden_states=text_emb,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
-                guess_mode=True
             )
 
             # Compute loss
