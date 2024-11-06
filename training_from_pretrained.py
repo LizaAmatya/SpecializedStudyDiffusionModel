@@ -65,7 +65,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
-            t = torch.randint(1, timesteps + 1, (images.shape[0],))
+            t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
              
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
