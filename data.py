@@ -94,7 +94,7 @@ class BirdGenDataset(Dataset):
 
         print('------text and image embeds',  text_embeddings.shape)
        
-        return image_tensor, mask, text_inputs  # passing token IDs instead of text embeds
+        return image_tensor, mask, text_embeddings.long()
     
 
 # Wrap Hugging Face dataset into a PyTorch Dataset

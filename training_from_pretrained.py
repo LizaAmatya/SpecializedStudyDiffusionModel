@@ -61,6 +61,12 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             images, masks, text_emb = batch
             images, masks, text_emb = images.to(device), masks.to(device), text_emb.to(device)
             
+            text_emb = text_emb.unsqueeze(1)  # Add sequence dimension, shape: [1, 1, 512]
+
+            # Now, expand to match the expected seq_len because positional embeddings not matching input embeds (e.g., 77 for CLIP)
+            # If the text encoder requires a seq_len of 77, you can use:
+            text_emb = text_emb.expand(-1, 77, -1)  # Now shape: [1, 77, 512]
+            
             encoder_hidden_states = text_encoder(text_emb).last_hidden_state
             
             latents = vae.encode(images).latent_dist.sample().to(device)
