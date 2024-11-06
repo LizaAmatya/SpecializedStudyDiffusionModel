@@ -62,7 +62,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
-            generated_images = controlnet(
+            generated_images = nn_model(
                 latents,
                 encoder_hidden_states=encoder_hidden_states,  # Text embeddings as conditioning
                 controlnet_cond=masks,  # Segmentation masks as conditioning
@@ -90,3 +90,10 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
             print("saved model at " + save_dir + f"model_{ep}.pth")
         
+        
+def main():
+    train_model()
+
+
+if __name__ == "__main__":
+    main()
