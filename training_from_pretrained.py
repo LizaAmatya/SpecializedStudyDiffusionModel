@@ -60,6 +60,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         pbar = tqdm(data_loader, mininterval=2)
         for batch in data_loader:
             images, masks, text_emb = batch
+            masks.repeat(1, 3, 1, 1)    # 1 channel to 3 channel conversion
             images, masks, text_emb = (
                 images.to(device).to(dtype=torch.float16),
                 masks.to(device).to(dtype=torch.float16),
