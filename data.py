@@ -88,14 +88,15 @@ class BirdGenDataset(Dataset):
         inputs = self.processor(text=label, images=image, return_tensors="pt", padding=True)
         
         text_inputs = inputs['input_ids']
+        pixel_vals = inputs['pixel_values']
         print('text inputs', text_inputs.shape)
         # image_inputs = inputs['pixel_values']
         with torch.no_grad():
             text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
-            # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
+            image_embeddings = self.clip_model.get_image_features(pixel_values=pixel_vals)
         print('------text and image embeds',  text_embeddings.shape)
        
-        return image_tensor, mask, text_embeddings.long()
+        return image_embeddings, mask, text_embeddings.long()
     
 
 # Wrap Hugging Face dataset into a PyTorch Dataset

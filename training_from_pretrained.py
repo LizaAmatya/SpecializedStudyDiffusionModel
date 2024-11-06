@@ -58,7 +58,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         
         pbar = tqdm(data_loader, mininterval=2)
         for batch in data_loader:
-            images, masks, text_emb = batch     # text emb shape: [4,1,512]
+            images, masks, text_emb, ima = batch     # text emb shape: [4,1,512]
             images, masks, text_emb = images.to(device), masks.to(device), text_emb.to(device)
                         
             encoder_hidden_states = text_encoder(text_emb, images).last_hidden_state
