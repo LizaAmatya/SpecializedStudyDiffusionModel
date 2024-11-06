@@ -91,8 +91,7 @@ class BirdGenDataset(Dataset):
         print('text inputs', text_inputs.shape)
         # image_inputs = inputs['pixel_values']
         with torch.no_grad():
-            # text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
-            text_embeddings = self.text_encoder(text_inputs).last_hidden_state
+            text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
             # image_embeddings = self.clip_model.get_image_features(pixel_values=image_inputs)
         print('------text and image embeds',  text_embeddings.shape)
        
