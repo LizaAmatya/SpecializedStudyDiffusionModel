@@ -9,6 +9,8 @@ from transformers import CLIPTextModel, CLIPModel
 from tqdm import tqdm
 from data import dataloader
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
+from torchsummary import summary
+
 
 device = (
     torch.device("cuda")
@@ -22,6 +24,9 @@ text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(devi
 model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
+
+
+summary(controlnet, input_size=(3, 256, 256))
 
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
@@ -80,7 +85,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 timestep=t,
                 encoder_hidden_states=text_emb,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
-                attention_mask=0
             )
 
             # Compute loss
