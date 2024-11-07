@@ -90,13 +90,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             # Reduce the number of channels from 1280 to 3 (for RGB images)
             nn.Conv2d(
                 in_channels=640,
-                out_channels=320,  # Output channels: 3 (RGB)
-                kernel_size=1,  # Kernel size of 1 to reduce the channel count
-                stride=1,  # No change in spatial dimensions from this layer
-                padding=0,  # No padding necessary
-            ),
-            nn.Conv2d(
-                in_channels=320,
                 out_channels=3,  # Output channels: 3 (RGB)
                 kernel_size=1,  # Kernel size of 1 to reduce the channel count
                 stride=1,  # No change in spatial dimensions from this layer
