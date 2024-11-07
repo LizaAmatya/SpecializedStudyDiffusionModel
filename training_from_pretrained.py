@@ -67,9 +67,10 @@ gc.collect()
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
-        
+        accumulation_steps = 4
+
         pbar = tqdm(data_loader, mininterval=2)
-        for batch in data_loader:
+        for i, batch in enumerate(pbar):
             images, masks, text_emb = batch
             print("masks shape---before", masks.shape)
 
@@ -133,9 +134,10 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             epoch_loss += loss.item()
             # scaler.scale(loss).backward()
             # scaler.unscale_(optim)
-            loss.backward()
-            optim.step()
-            optim.zero_grad()
+            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
+                loss.backward()
+                optim.step()
+                optim.zero_grad()
         
         del images, masks, text_emb, loss, t
         torch.cuda.empty_cache()
@@ -147,7 +149,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             writer = csv.writer(f)
             writer.writerow([ep + 1, avg_loss])
 
-        
         if ep % 4 == 0 or ep == int(n_epoch - 1):
             save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
             print("saved model at " + save_dir + f"model_{ep}.pth")
