@@ -153,8 +153,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # Clip gradients because gradients exploding that give Nan
                 scaler.unscale_(optim)  # Unscale gradients of model parameters
-                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)  
-                optim.step()
+                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
+                # optim.step()
+                scaler.step(optim)
                 scaler.update()
                 optim.zero_grad()
 
