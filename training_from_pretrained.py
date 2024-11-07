@@ -119,13 +119,14 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 masks.to(device),
                 text_emb.to(device),
             )
-            text_emb_resized = nn.Linear(512, 768).to(device)(
-                text_emb
-            )  # Resize to match 768 features
-            t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
-            
-            latents = vae.encode(images).latent_dist.sample().to(device)
             with torch.autocast(device_type='cuda'):
+                text_emb_resized = nn.Linear(512, 768).to(device)(
+                    text_emb
+                )  # Resize to match 768 features
+                t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
+                
+                latents = vae.encode(images).latent_dist.sample().to(device)
+                
                 # Forward pass
                 out_model = nn_model(
                     sample=latents,
