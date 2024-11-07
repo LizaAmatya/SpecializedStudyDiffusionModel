@@ -96,7 +96,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                     encoder_hidden_states=text_emb_resized,
                     controlnet_cond=masks,  # Segmentation masks as conditioning
                 )
-                print("training after", dir(out_model), type(out_model))
+                # print("training after", dir(out_model), type(out_model))
                 print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
                 print(out_model.mid_block_res_sample.shape) 
                 generated_image = out_model.mid_block_res_sample
@@ -131,9 +131,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            scaler.scale(loss).backward()
-            scaler.unscale_(optim)
-            # loss.backward()
+            # scaler.scale(loss).backward()
+            # scaler.unscale_(optim)
+            loss.backward()
             optim.step()
             optim.zero_grad()
         
