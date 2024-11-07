@@ -127,6 +127,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                     mode="bilinear",
                     align_corners=False,
                 )
+                generated_image_resized.to(device)
                 print('gen image------',generated_image.shape)
                 print('image orig', images.shape)
                 loss = criterion(generated_image_resized, images)   # F.mse_loss
