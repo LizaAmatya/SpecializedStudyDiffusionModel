@@ -89,8 +89,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 controlnet_cond=masks,  # Segmentation masks as conditioning
             )
             print("training after", dir(generated_images), type(generated_images))
-            print(generated_images.down_block_res_samples)  # Check if this contains the image
-            print(generated_images.mid_block_res_sample) 
+            print(generated_images.down_block_res_samples.shape)  # Check if this contains the image
+            print(generated_images.mid_block_res_sample.shape) 
             # Compute loss
             loss = criterion(generated_images, images)  # Depending on your task
 
