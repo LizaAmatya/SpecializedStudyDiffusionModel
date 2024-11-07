@@ -140,7 +140,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            loss = loss / accumulation_steps
             # scaler.scale(loss).backward()
             loss.backward()
             
