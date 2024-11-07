@@ -98,36 +98,41 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                     controlnet_cond=masks,  # Segmentation masks as conditioning
                 )
                 # print("training after", dir(out_model), type(out_model))
-                print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
-                print(out_model.mid_block_res_sample.shape) 
+                # print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
+                # print(out_model.mid_block_res_sample.shape) 
                 generated_image = out_model.mid_block_res_sample
                 generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
 
                 # generated images have 1280 channels, so reduction upsampling and conv layer
-                upsample_block = (
-                    nn.ConvTranspose2d(
-                        in_channels=1280,
-                        out_channels=1280,
-                        kernel_size=4,
-                        stride=2,
-                        padding=1,
+                upsample_block = upsample_block = (
+                    nn.Sequential(
+                        # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
+                        nn.ConvTranspose2d(
+                            in_channels=1280,
+                            out_channels=3,  # Keep 1280 channels for now (no change)
+                            kernel_size=4,  # Kernel size to upscale
+                            stride=2,  # Stride of 2 to double spatial dimensions
+                            padding=1,  # Ensure the spatial dimensions are doubled
+                        ),
+                        # Reduce the number of channels from 1280 to 3 (for RGB images)
+                        # nn.Conv2d(
+                        #     in_channels=1280,
+                        #     out_channels=3,  # Output channels: 3 (RGB)
+                        #     kernel_size=1,  # Kernel size of 1 to reduce the channel count
+                        #     stride=1,  # No change in spatial dimensions from this layer
+                        #     padding=0,  # No padding necessary
+                        # ),
                     )
                     .to(device)
                     .to(dtype=torch.float16)
-                ) 
+                )
                 generated_image = upsample_block(generated_image)
-
-                # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
-                conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
-                generated_image = conv_layer(generated_image)
-                generated_image = generated_image.cpu()
                 generated_image_resized = F.interpolate(
                     generated_image,
                     size=(256, 256),
                     mode="bilinear",
                     align_corners=False,
                 )
-                generated_image_resized.to(device)
                 print('gen image------',generated_image.shape)
                 print('image orig', images.shape)
                 loss = criterion(generated_image_resized, images)   # F.mse_loss
@@ -141,8 +146,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 optim.step()
                 optim.zero_grad()
         
-        del images, masks, text_emb, loss, t, generated_image, generated_image_resized
-        torch.cuda.empty_cache()
+            del images, masks, text_emb, loss, t, generated_image, generated_image_resized
+            torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
         avg_loss = epoch_loss / len(dataloader)
