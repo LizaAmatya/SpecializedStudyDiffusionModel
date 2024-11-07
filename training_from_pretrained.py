@@ -9,8 +9,7 @@ from transformers import CLIPTextModel, CLIPModel
 from tqdm import tqdm
 from data import dataloader
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
-from torchsummary import summary
-
+from torch import nn
 
 device = (
     torch.device("cuda")
@@ -76,14 +75,17 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
+            text_emb_resized = nn.Linear(512, 768)(
+                text_emb
+            )  # Resize to match 768 features
             t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
-             
+            
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
             generated_images = nn_model(
                 sample=latents,
                 timestep=t,
-                encoder_hidden_states=text_emb,
+                encoder_hidden_states=text_emb_resized,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
             )
 
