@@ -88,7 +88,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 encoder_hidden_states=text_emb_resized,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
             )
-
+            print("training after", print(dir(generated_images)), type(generated_images))
             # Compute loss
             loss = criterion(generated_images, images)  # Depending on your task
 
