@@ -80,6 +80,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 timestep=t,
                 encoder_hidden_states=text_emb,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
+                attention_mask=0
             )
 
             # Compute loss
