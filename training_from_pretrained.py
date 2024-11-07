@@ -139,10 +139,12 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            # scaler.scale(loss).backward()
-            # scaler.unscale_(optim)
+            scaler.scale(loss).backward()
+            # loss.backward()
+            
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-                loss.backward()
+                scaler.unscale_(optim)
+                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
                 optim.step()
                 optim.zero_grad()
         
