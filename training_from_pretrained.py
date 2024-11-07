@@ -25,9 +25,9 @@ model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
 
+print('config',controlnet.config)
 
-summary(controlnet, input_size=(3, 256, 256))
-
+print('model', controlnet)
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
 )
