@@ -5,11 +5,13 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import torch
 from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
-from transformers import CLIPTextModel, CLIPModel
+from transformers import CLIPModel
 from tqdm import tqdm
 from data import dataloader
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
 from torch import nn
+import torch.nn.functional as F
+
 
 device = (
     torch.device("cuda")
@@ -82,17 +84,19 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             
             latents = vae.encode(images).latent_dist.sample().to(device)
             # Forward pass
-            generated_images = nn_model(
+            out_model = nn_model(
                 sample=latents,
                 timestep=t,
                 encoder_hidden_states=text_emb_resized,
                 controlnet_cond=masks,  # Segmentation masks as conditioning
             )
-            print("training after", dir(generated_images), type(generated_images))
-            print(generated_images.down_block_res_samples[0].shape)  # Check if this contains the image
-            print(generated_images.mid_block_res_sample[0].shape) 
+            print("training after", dir(out_model), type(out_model))
+            print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
+            print(out_model.mid_block_res_sample.shape) 
+            generated_image = out_model.mid_block_res_sample
+            # generated_image_tensor = F.interpolate(generated_image_tensor, size=(256, 256), mode='bilinear', align_corners=False)
             # Compute loss
-            loss = criterion(generated_images, images)  # Depending on your task
+            loss = criterion(generated_image, images)  # Depending on your task
 
             epoch_loss += loss.item()
             # Backward pass and optimization
