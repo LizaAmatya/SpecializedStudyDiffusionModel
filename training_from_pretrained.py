@@ -109,7 +109,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                         # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
                         nn.ConvTranspose2d(
                             in_channels=1280,
-                            out_channels=3,  # Keep 1280 channels for now (no change)
+                            out_channels=1280,  # Keep 1280 channels for now (no change)
                             kernel_size=4,  # Kernel size to upscale
                             stride=2,  # Stride of 2 to double spatial dimensions
                             padding=1,  # Ensure the spatial dimensions are doubled
