@@ -96,7 +96,7 @@ class BirdGenDataset(Dataset):
             # image_embeddings = self.clip_model.get_image_features(pixel_values=pixel_vals)
         # print('------text and image embeds',  text_embeddings.shape)
        
-        return image_tensor, mask, text_embeddings.long()
+        return image_tensor, mask, text_embeddings
     
 
 # Wrap Hugging Face dataset into a PyTorch Dataset
