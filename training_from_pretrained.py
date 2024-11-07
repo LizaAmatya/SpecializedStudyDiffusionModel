@@ -119,7 +119,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
                 conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
                 generated_image = conv_layer(generated_image)
-
+                print('gen image------',generated_image.shape)
+                print('image orig', images.shape)
                 loss = criterion(generated_image, images)
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
