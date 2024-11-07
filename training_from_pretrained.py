@@ -71,6 +71,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
 
         pbar = tqdm(data_loader, mininterval=2)
         for i, batch in enumerate(pbar):
+            optim.zero_grad()
             images, masks, text_emb = batch
             print("masks shape---before", masks.shape)
 
@@ -145,7 +146,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 scaler.unscale_(optim)
                 torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
-                optim.step()
+                optim.step(optim)
+                scaler.update()
                 optim.zero_grad()
         
             del images, masks, text_emb, loss, t, generated_image, generated_image_resized
