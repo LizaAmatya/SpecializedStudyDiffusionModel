@@ -140,14 +140,14 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            scaler.scale(loss).backward()
-            # loss.backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
             
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-                scaler.unscale_(optim)
-                torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
+                # scaler.unscale_(optim)
+                # torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
                 optim.step(optim)
-                scaler.update()
+                # scaler.update()
                 optim.zero_grad()
         
             del images, masks, text_emb, loss, t, generated_image, generated_image_resized
