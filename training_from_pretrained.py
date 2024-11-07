@@ -120,6 +120,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
                 conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
                 generated_image = conv_layer(generated_image)
+                generated_image = generated_image.cpu()
                 generated_image_resized = F.interpolate(
                     generated_image,
                     size=(256, 256),
@@ -139,7 +140,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 optim.step()
                 optim.zero_grad()
         
-        del images, masks, text_emb, loss, t
+        del images, masks, text_emb, loss, t, generated_image, generated_image_resized
         torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
