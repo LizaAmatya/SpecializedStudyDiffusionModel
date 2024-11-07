@@ -11,6 +11,7 @@ from data import dataloader
 from diffusion_utils import load_latest_checkpoint, save_checkpoint
 from torch import nn
 import torch.nn.functional as F
+from torch.amp import GradScaler
 
 
 device = (
@@ -59,6 +60,8 @@ controlnet.train()
 num_epochs = 32
 timesteps = 500
 
+scaler = GradScaler("cuda")
+
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
@@ -83,45 +86,46 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
             
             latents = vae.encode(images).latent_dist.sample().to(device)
-            # Forward pass
-            out_model = nn_model(
-                sample=latents,
-                timestep=t,
-                encoder_hidden_states=text_emb_resized,
-                controlnet_cond=masks,  # Segmentation masks as conditioning
-            )
-            print("training after", dir(out_model), type(out_model))
-            print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
-            print(out_model.mid_block_res_sample.shape) 
-            generated_image = out_model.mid_block_res_sample
-            generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
-
-            # generated images have 1280 channels, so reduction upsampling and conv layer
-            upsample_block = (
-                nn.ConvTranspose2d(
-                    in_channels=1280,
-                    out_channels=1280,
-                    kernel_size=4,
-                    stride=2,
-                    padding=1,
+            with torch.autocast(device_type='cuda'):
+                # Forward pass
+                out_model = nn_model(
+                    sample=latents,
+                    timestep=t,
+                    encoder_hidden_states=text_emb_resized,
+                    controlnet_cond=masks,  # Segmentation masks as conditioning
                 )
-                .to(device)
-                .to(dtype=torch.float16)
-            ) 
-            generated_image = upsample_block(generated_image)
+                print("training after", dir(out_model), type(out_model))
+                print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
+                print(out_model.mid_block_res_sample.shape) 
+                generated_image = out_model.mid_block_res_sample
+                generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
 
-            # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
-            conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
-            generated_image = conv_layer(generated_image)
+                # generated images have 1280 channels, so reduction upsampling and conv layer
+                upsample_block = (
+                    nn.ConvTranspose2d(
+                        in_channels=1280,
+                        out_channels=1280,
+                        kernel_size=4,
+                        stride=2,
+                        padding=1,
+                    )
+                    .to(device)
+                    .to(dtype=torch.float16)
+                ) 
+                generated_image = upsample_block(generated_image)
 
-            # Compute loss
-            loss = criterion(generated_image, images)  # Depending on your task
+                # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
+                conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
+                generated_image = conv_layer(generated_image)
+
+                loss = criterion(generated_image, images)  # Depending on your task
 
             epoch_loss += loss.item()
-            # Backward pass and optimization
-            optim.zero_grad()
-            loss.backward()
+            scaler.scale(loss).backward()
+            scaler.unscale_(optim)
+            # loss.backward()
             optim.step()
+            optim.zero_grad()
         
         # Calculate and log average loss for the epoch
         avg_loss = epoch_loss / len(dataloader)
