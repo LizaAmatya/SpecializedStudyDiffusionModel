@@ -94,7 +94,26 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
             print(out_model.mid_block_res_sample.shape) 
             generated_image = out_model.mid_block_res_sample
-            # generated_image_tensor = F.interpolate(generated_image_tensor, size=(256, 256), mode='bilinear', align_corners=False)
+            generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
+
+            # generated images have 1280 channels, so reduction upsampling and conv layer
+            upsample_block = (
+                nn.ConvTranspose2d(
+                    in_channels=1280,
+                    out_channels=1280,
+                    kernel_size=4,
+                    stride=2,
+                    padding=1,
+                )
+                .to(device)
+                .to(dtype=torch.float16)
+            ) 
+            generated_image = upsample_block(generated_image)
+
+            # Step 2: Reduce the number of channels from 1280 to 3 (for RGB images)
+            conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
+            generated_image = conv_layer(generated_image)
+
             # Compute loss
             loss = criterion(generated_image, images)  # Depending on your task
 
