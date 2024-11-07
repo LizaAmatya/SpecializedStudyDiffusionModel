@@ -110,19 +110,19 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                         # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
                         nn.ConvTranspose2d(
                             in_channels=1280,
-                            out_channels=640,  # Keep 1280 channels for now (no change)
+                            out_channels=3,  # Keep 1280 channels for now (no change)
                             kernel_size=4,  # Kernel size to upscale
                             stride=2,  # Stride of 2 to double spatial dimensions
                             padding=1,  # Ensure the spatial dimensions are doubled
                         ),
                         # Reduce the number of channels from 1280 to 3 (for RGB images)
-                        nn.Conv2d(
-                            in_channels=640,
-                            out_channels=3,  # Output channels: 3 (RGB)
-                            kernel_size=1,  # Kernel size of 1 to reduce the channel count
-                            stride=1,  # No change in spatial dimensions from this layer
-                            padding=0,  # No padding necessary
-                        ),
+                        # nn.Conv2d(
+                        #     in_channels=640,
+                        #     out_channels=3,  # Output channels: 3 (RGB)
+                        #     kernel_size=1,  # Kernel size of 1 to reduce the channel count
+                        #     stride=1,  # No change in spatial dimensions from this layer
+                        #     padding=0,  # No padding necessary
+                        # ),
                     )
                     .to(device)
                     .to(dtype=torch.float16)
