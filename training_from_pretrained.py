@@ -61,6 +61,8 @@ num_epochs = 32
 timesteps = 500
 
 scaler = GradScaler("cuda")
+torch.cuda.empty_cache()
+gc.collect()
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     for ep in range(start_epoch, num_epochs):
@@ -118,14 +120,18 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 conv_layer = nn.Conv2d(1280, 3, kernel_size=1).to(device).to(dtype=torch.float16)
                 generated_image = conv_layer(generated_image)
 
-                loss = criterion(generated_image, images)  # Depending on your task
-
+                loss = criterion(generated_image, images)
+                print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
+                
             epoch_loss += loss.item()
             scaler.scale(loss).backward()
             scaler.unscale_(optim)
             # loss.backward()
             optim.step()
             optim.zero_grad()
+        
+        del images, masks, text_emb, loss, t
+        torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
         avg_loss = epoch_loss / len(dataloader)
@@ -134,7 +140,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             writer = csv.writer(f)
             writer.writerow([ep + 1, avg_loss])
 
-        print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
         
         if ep % 4 == 0 or ep == int(n_epoch - 1):
             save_checkpoint(nn_model, optim, ep, epoch_loss, save_dir)
