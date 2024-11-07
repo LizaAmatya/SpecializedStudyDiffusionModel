@@ -75,9 +75,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 masks.to(device).to(dtype=torch.float16),
                 text_emb.to(device).to(dtype=torch.float16),
             )
-            text_emb_resized = nn.Linear(512, 768)(
+            text_emb_resized = nn.Linear(512, 768).to(device)(
                 text_emb
-            ).to(device)  # Resize to match 768 features
+            )  # Resize to match 768 features
             t = torch.randint(1, timesteps + 1, (images.shape[0],)).to(device)
             
             latents = vae.encode(images).latent_dist.sample().to(device)
