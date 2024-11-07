@@ -24,9 +24,9 @@ model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
 
-print('config',controlnet.config)
+# print('config',controlnet.config)
 
-print('model', controlnet)
+# print('model', controlnet)
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
 )
@@ -89,8 +89,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 controlnet_cond=masks,  # Segmentation masks as conditioning
             )
             print("training after", dir(generated_images), type(generated_images))
-            print(generated_images.down_block_res_samples.shape)  # Check if this contains the image
-            print(generated_images.mid_block_res_sample.shape) 
+            print(generated_images.down_block_res_samples[0].shape)  # Check if this contains the image
+            print(generated_images.mid_block_res_sample[0].shape) 
             # Compute loss
             loss = criterion(generated_images, images)  # Depending on your task
 
