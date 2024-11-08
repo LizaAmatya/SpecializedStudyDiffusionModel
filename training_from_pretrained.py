@@ -200,12 +200,12 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 # optim.step()
                 scaler.step(optim)
                 for group in optim.param_groups:
-                    # for param in group["params"]:
-                    #     print(
-                    #         "----in here moved",
-                    #     )
-                    #     # Move gradients and other optimizer states to CPU
-                    #     param.grad = param.grad.cpu()
+                    for param in group["params"]:
+                        print(
+                            "----in here moved",
+                        )
+                        param = param.cpu()
+                        param.grad = param.grad.cpu()
                     if 'state' in group:
                         print(
                             "----in here moved optim to cpu",
