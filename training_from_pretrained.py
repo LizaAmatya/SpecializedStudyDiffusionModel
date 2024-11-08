@@ -51,6 +51,9 @@ if not os.path.exists(loss_file_path):
 optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
+for group in optim.param_groups:
+    group["state"] = {key: value.cpu() for key, value in group["state"].items()}
+    
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
 criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss for MSE -- HuberLoss (SmoothL1: l1 + MSE loss)
 
