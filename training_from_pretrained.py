@@ -53,17 +53,17 @@ optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
 
-# deepspeed_config = {
-#     "optimizer": optim,
-#     "zero_optimization": {
-#         "stage": 2,
-#         "offload_optimizer": {
-#             "device": "cpu",
-#         },
-#     },
-#     "train_batch_size": 4,
-#     "gradient_accumulation_steps": 4,
-# }
+deepspeed_config = {
+    "optimizer": optim,
+    "zero_optimization": {
+        "stage": 2,
+        "offload_optimizer": {
+            "device": "cpu",
+        },
+    },
+    "train_batch_size": 4,
+    "gradient_accumulation_steps": 4,
+}
 
 
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
@@ -73,9 +73,9 @@ nn_model, optim, start_epoch, loss = load_latest_checkpoint(
     controlnet, optim, save_dir, device=device
 )
 
-# model_engine, optimizer, _, _ = deepspeed.initialize(
-#     config_params=deepspeed_config, model=nn_model, optimizer=optim
-# )
+model_engine, optimizer, _, _ = deepspeed.initialize(
+    config_params=deepspeed_config, model=nn_model, optimizer=optim
+)
 
 # Training loop
 controlnet.train()
@@ -97,43 +97,43 @@ def initialize_weights(model):
             nn.init.constant_(m.bias, 0)
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
-    upsample_block = (
-        nn.Sequential(
-            # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
-            nn.ConvTranspose2d(
-                in_channels=1280,
-                out_channels=640,  # Keep 1280 channels for now (no change)
-                kernel_size=4,  # Kernel size to upscale
-                stride=2,  # Stride of 2 to double spatial dimensions
-                padding=1,  # Ensure the spatial dimensions are doubled
-            ),
-            # Reduce the number of channels from 1280 to 3 (for RGB images)
-            nn.Conv2d(
-                in_channels=640,
-                out_channels=3,  # Output channels: 3 (RGB)
-                kernel_size=1,  # Kernel size of 1 to reduce the channel count
-                stride=1,  # No change in spatial dimensions from this layer
-                padding=0,  # No padding necessary
-            ),
-        )
-        .to(device).to(dtype=torch.float32)
-    )
-    # upsample_block = nn.Sequential(
-    #     # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
-    #     nn.Conv2d(
-    #         1280, 640, kernel_size=3, padding=1, stride=1
-    #     ),  # Reduce channels from 1280 to 640
-    #     nn.BatchNorm2d(640),
-    #     nn.ReLU(),
-    #     # Depthwise separable convolution: reduces channels and memory usage
-    #     nn.Conv2d(
-    #         640, 320, kernel_size=3, padding=1, stride=1
-    #     ),  # Reduce channels to 320
-    #     nn.BatchNorm2d(320),
-    #     nn.ReLU(),
-    #     # Final reduction to 3 channels (RGB)
-    #     nn.Conv2d(320, 3, kernel_size=1),
-    # ).to(device).to(dtype=torch.float16)
+    # upsample_block = (
+    #     nn.Sequential(
+    #         # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
+    #         nn.ConvTranspose2d(
+    #             in_channels=1280,
+    #             out_channels=640,  # Keep 1280 channels for now (no change)
+    #             kernel_size=4,  # Kernel size to upscale
+    #             stride=2,  # Stride of 2 to double spatial dimensions
+    #             padding=1,  # Ensure the spatial dimensions are doubled
+    #         ),
+    #         # Reduce the number of channels from 1280 to 3 (for RGB images)
+    #         nn.Conv2d(
+    #             in_channels=640,
+    #             out_channels=3,  # Output channels: 3 (RGB)
+    #             kernel_size=1,  # Kernel size of 1 to reduce the channel count
+    #             stride=1,  # No change in spatial dimensions from this layer
+    #             padding=0,  # No padding necessary
+    #         ),
+    #     )
+    #     .to(device).to(dtype=torch.float32)
+    # )
+    upsample_block = nn.Sequential(
+        # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
+        nn.Conv2d(
+            1280, 640, kernel_size=3, padding=1, stride=1
+        ),  # Reduce channels from 1280 to 640
+        nn.BatchNorm2d(640),
+        nn.ReLU(),
+        # Depthwise separable convolution: reduces channels and memory usage
+        nn.Conv2d(
+            640, 320, kernel_size=3, padding=1, stride=1
+        ),  # Reduce channels to 320
+        nn.BatchNorm2d(320),
+        nn.ReLU(),
+        # Final reduction to 3 channels (RGB)
+        nn.Conv2d(320, 3, kernel_size=1),
+    ).to(device).to(dtype=torch.float32)
     initialize_weights(upsample_block)
 
     for ep in range(start_epoch, num_epochs):
@@ -189,32 +189,25 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            # model_engine.backward(loss)
-            # model_engine.step()
-            scaler.scale(loss).backward()
+            model_engine.backward(loss)
+            model_engine.step()
+            # scaler.scale(loss).backward()
             # loss.backward()
             
-            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-                scaler.unscale_(optim)
-                torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
-                # optim.step()
-                scaler.step(optim)
-                for group in optim.param_groups:
-                    for param in group["params"]:
-                        print(
-                            "----in here moved",
-                        )
-                        param = param.cpu()
-                        if param.grad is not None:
-                            param.grad = param.grad.cpu()
-                    if 'state' in group:
-                        print(
-                            "----in here moved optim to cpu",
-                        )
-                        group["state"] = {key: value.cpu() for key, value in group["state"].items()}
+            # if (i + 1) % accumulation_steps == 0 or i == len(pbar):
+            #     scaler.unscale_(optim)
+            #     torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
+            #     # optim.step()
+            #     scaler.step(optim)
+            #     # for group in optim.param_groups:
+            #     #     if 'state' in group:
+            #     #         print(
+            #     #             "----in here moved optim to cpu",
+            #     #         )
+            #     #         group["state"] = {key: value.cpu() for key, value in group["state"].items()}
     
-                scaler.update()
-                optim.zero_grad(set_to_none=True)
+            #     scaler.update()
+            #     optim.zero_grad(set_to_none=True)
         
             del (
                 images,
