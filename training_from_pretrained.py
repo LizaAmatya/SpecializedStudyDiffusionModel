@@ -56,10 +56,10 @@ def move_optimizer_state_to_cpu(optimizer):
     for group in optimizer.param_groups:
         # Ensure 'state' is created (it won't exist before the first backward pass)
         if "state" in group:
-            for param in group["params"]:
-                group["state"] = {
-                    key: value.cpu() for key, value in group["state"].items()
-                }
+            print('in here--', group['state'])
+            group["state"] = {
+                key: value.cpu() for key, value in group["state"].items()
+            }
 
 
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
