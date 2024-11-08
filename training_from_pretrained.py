@@ -22,9 +22,9 @@ device = (
     else torch.device("cpu")
 )
 
-text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", torch_dtype=torch.float16).to(device)
+text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", torch_dtype=torch.float32).to(device)
 model_id = "lllyasviel/control_v11p_sd15_seg"
-controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
+controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32)
 controlnet.to(device)
 
 # print('config',controlnet.config)
@@ -132,9 +132,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             print('masks shape---after', masks.shape)
             print('text emb shapessss-------', text_emb.shape)
             images, masks, text_emb = (
-                images.to(device).to(dtype=torch.float16),
-                masks.to(device).to(dtype=torch.float16),
-                text_emb.to(device).to(dtype=torch.float16),
+                images.to(device).to(dtype=torch.float32),
+                masks.to(device).to(dtype=torch.float32),
+                text_emb.to(device).to(dtype=torch.float32),
             )
             with torch.autocast(device_type='cuda'):
                 text_emb_resized = nn.Linear(512, 768).to(device)(
@@ -163,10 +163,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                     size=(256, 256),
                     mode="bilinear",
                     align_corners=False,
-                ).to(dtype=torch.float32)
+                )
                 print("gen image------", generated_image_resized.shape)
                 print('image orig', images.shape)
-                images = images.to(dtype=torch.float32)
                 loss = criterion(generated_image_resized, images)   # F.mse_loss
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
