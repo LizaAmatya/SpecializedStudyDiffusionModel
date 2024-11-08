@@ -53,18 +53,17 @@ optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
 
-deepspeed_config = {
-    "optimizer": optim,
-    "zero_optimization": {
-        "stage": 2,
-        "offload_optimizer": {
-            "device": "cpu",
-        },
-    },
-    "train_batch_size": 4,
-    "gradient_accumulation_steps": 4,
-    "disable_mpi": 'true'
-}
+# deepspeed_config = {
+#     "optimizer": optim,
+#     "zero_optimization": {
+#         "stage": 2,
+#         "offload_optimizer": {
+#             "device": "cpu",
+#         },
+#     },
+#     "train_batch_size": 4,
+#     "gradient_accumulation_steps": 4,
+# }
 
 
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
