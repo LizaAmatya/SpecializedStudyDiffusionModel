@@ -73,7 +73,8 @@ criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss fo
 nn_model, optim, start_epoch, loss = load_latest_checkpoint(
     controlnet, optim, save_dir, device=device
 )
-
+os.environ["OMPI_MCA_btl"] = "self,vader,openib"  # Bypass certain MPI settings
+os.environ["MPI4PY_RC_THREAD"] = "false"
 model_engine, optimizer, _, _ = deepspeed.initialize(
     config_params=deepspeed_config, model=nn_model, optimizer=optim
 )
