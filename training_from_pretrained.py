@@ -24,14 +24,14 @@ device = (
 
 text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 model_id = "lllyasviel/control_v11p_sd15_seg"
-controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32)
+controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
 
 # print('config',controlnet.config)
 
 # print('model', controlnet)
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
-    "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float32
+    "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
 )
 pipe.to(device)
 vae = pipe.vae
@@ -115,9 +115,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             print('masks shape---after', masks.shape)
             print('text emb shapessss-------', text_emb.shape)
             images, masks, text_emb = (
-                images.to(device),
-                masks.to(device),
-                text_emb.to(device),
+                images.to(device).to(dtype=torch.float16),
+                masks.to(device).to(dtype=torch.float16),
+                text_emb.to(device).to(dtype=torch.float16),
             )
             with torch.autocast(device_type='cuda'):
                 text_emb_resized = nn.Linear(512, 768).to(device)(
@@ -153,15 +153,15 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            scaler.scale(loss).backward()
-            # loss.backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
             
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # scaler.unscale_(optim)
                 torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
-                # optim.step()
-                scaler.step(optim)
-                scaler.update()
+                optim.step()
+                # scaler.step(optim)
+                # scaler.update()
                 optim.zero_grad(set_to_none=True)
         
             del images, masks, text_emb, loss, t, generated_image, generated_image_resized
