@@ -52,18 +52,18 @@ if not os.path.exists(loss_file_path):
 optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
-# 
-deepspeed_config = {
-    "optimizer": optim,
-    "zero_optimization": {
-        "stage": 2,
-        "offload_optimizer": {
-            "device": "cpu",
-        },
-    },
-    "train_batch_size": 4,
-    "gradient_accumulation_steps": 4,
-}
+
+# deepspeed_config = {
+#     "optimizer": optim,
+#     "zero_optimization": {
+#         "stage": 2,
+#         "offload_optimizer": {
+#             "device": "cpu",
+#         },
+#     },
+#     "train_batch_size": 4,
+#     "gradient_accumulation_steps": 4,
+# }
 
 
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
@@ -73,9 +73,9 @@ nn_model, optim, start_epoch, loss = load_latest_checkpoint(
     controlnet, optim, save_dir, device=device
 )
 
-model_engine, optimizer, _, _ = deepspeed.initialize(
-    config_params=deepspeed_config, model=nn_model, optimizer=optim
-)
+# model_engine, optimizer, _, _ = deepspeed.initialize(
+#     config_params=deepspeed_config, model=nn_model, optimizer=optim
+# )
 
 # Training loop
 controlnet.train()
@@ -189,18 +189,30 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            model_engine.backward(loss)
-            model_engine.step()
-            # scaler.scale(loss).backward()
+            # model_engine.backward(loss)
+            # model_engine.step()
+            scaler.scale(loss).backward()
             # loss.backward()
             
-            # if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-            #     scaler.unscale_(optim)
-            #     torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
-            #     # optim.step()
-            #     scaler.step(optim)
-            #     scaler.update()
-            #     optim.zero_grad(set_to_none=True)
+            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
+                scaler.unscale_(optim)
+                torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
+                # optim.step()
+                scaler.step(optim)
+                for group in optim.param_groups:
+                    for param in group["params"]:
+                        print(
+                            "----in here moved",
+                        )
+                        # Move gradients and other optimizer states to CPU
+                        param.grad = param.grad.cpu()
+                        print(
+                            "----in here moved optim to cpu",
+                        )
+                        group["state"] = {key: value.cpu() for key, value in group["state"].items()}
+    
+                scaler.update()
+                optim.zero_grad(set_to_none=True)
         
             del (
                 images,
