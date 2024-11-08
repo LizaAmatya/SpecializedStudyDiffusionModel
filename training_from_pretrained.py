@@ -77,28 +77,28 @@ def initialize_weights(model):
             nn.init.constant_(m.bias, 0)
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
-    upsample_block = upsample_block = (
-        nn.Sequential(
-            # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
-            nn.ConvTranspose2d(
-                in_channels=1280,
-                out_channels=640,  # Keep 1280 channels for now (no change)
-                kernel_size=4,  # Kernel size to upscale
-                stride=2,  # Stride of 2 to double spatial dimensions
-                padding=1,  # Ensure the spatial dimensions are doubled
-            ),
-            # Reduce the number of channels from 1280 to 3 (for RGB images)
-            nn.Conv2d(
-                in_channels=640,
-                out_channels=3,  # Output channels: 3 (RGB)
-                kernel_size=1,  # Kernel size of 1 to reduce the channel count
-                stride=1,  # No change in spatial dimensions from this layer
-                padding=0,  # No padding necessary
-            ),
-        )
-        .to(device)
-    )
-    initialize_weights(upsample_block)
+    # upsample_block = (
+    #     nn.Sequential(
+    #         # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
+    #         nn.ConvTranspose2d(
+    #             in_channels=1280,
+    #             out_channels=640,  # Keep 1280 channels for now (no change)
+    #             kernel_size=4,  # Kernel size to upscale
+    #             stride=2,  # Stride of 2 to double spatial dimensions
+    #             padding=1,  # Ensure the spatial dimensions are doubled
+    #         ),
+    #         # Reduce the number of channels from 1280 to 3 (for RGB images)
+    #         nn.Conv2d(
+    #             in_channels=640,
+    #             out_channels=3,  # Output channels: 3 (RGB)
+    #             kernel_size=1,  # Kernel size of 1 to reduce the channel count
+    #             stride=1,  # No change in spatial dimensions from this layer
+    #             padding=0,  # No padding necessary
+    #         ),
+    #     )
+    #     .to(device)
+    # )
+    # initialize_weights(upsample_block)
 
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
@@ -140,16 +140,16 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 generated_image = out_model.mid_block_res_sample
                 generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
 
-                generated_image = upsample_block(generated_image)
-                generated_image_resized = F.interpolate(
-                    generated_image,
-                    size=(256, 256),
-                    mode="bilinear",
-                    align_corners=False,
-                )
+                # # generated_image = upsample_block(generated_image)
+                # generated_image_resized = F.interpolate(
+                #     generated_image,
+                #     size=(256, 256),
+                #     mode="bilinear",
+                #     align_corners=False,
+                # )
                 print('gen image------',generated_image.shape)
                 print('image orig', images.shape)
-                loss = criterion(generated_image_resized, images)   # F.mse_loss
+                loss = criterion(generated_image, images)   # F.mse_loss
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
@@ -158,13 +158,13 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 # scaler.unscale_(optim)
-                torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
+                # torch.nn.utils.clip_grad_norm_(nn_model.parameters(), max_norm=1.0)
                 optim.step()
                 # scaler.step(optim)
                 # scaler.update()
                 optim.zero_grad(set_to_none=True)
         
-            del images, masks, text_emb, loss, t, generated_image, generated_image_resized
+            del images, masks, text_emb, loss, t, generated_image
             torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
