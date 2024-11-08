@@ -22,7 +22,7 @@ device = (
     else torch.device("cpu")
 )
 
-text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+text_encoder = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", torch_dtype=torch.float16).to(device)
 model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16)
 controlnet.to(device)
