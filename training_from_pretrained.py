@@ -98,7 +98,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
     #     )
     #     .to(device)
     # )
-    # initialize_weights(upsample_block)
     upsample_block = nn.Sequential(
         # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
         nn.Conv2d(
@@ -115,6 +114,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         # Final reduction to 3 channels (RGB)
         nn.Conv2d(320, 3, kernel_size=1),
     ).to(device).to(dtype=torch.float16)
+    initialize_weights(upsample_block)
 
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
@@ -169,11 +169,11 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
-            scaler.scale(loss).backward()
-            # loss.backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
             
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-                scaler.unscale_(optim)
+                # scaler.unscale_(optim)
                 torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
                 # optim.step()
                 scaler.step(optim)
