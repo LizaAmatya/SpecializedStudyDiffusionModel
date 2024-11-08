@@ -99,6 +99,22 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
     #     .to(device)
     # )
     # initialize_weights(upsample_block)
+    upsample_block = nn.Sequential(
+        # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
+        nn.Conv2d(
+            1280, 640, kernel_size=3, padding=1, stride=1
+        ),  # Reduce channels from 1280 to 640
+        nn.BatchNorm2d(640),
+        nn.ReLU(),
+        # Depthwise separable convolution: reduces channels and memory usage
+        nn.Conv2d(
+            640, 320, kernel_size=3, padding=1, stride=1
+        ),  # Reduce channels to 320
+        nn.BatchNorm2d(320),
+        nn.ReLU(),
+        # Final reduction to 3 channels (RGB)
+        nn.Conv2d(320, 3, kernel_size=1),
+    )
 
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
@@ -138,18 +154,18 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 # print(out_model.down_block_res_samples[0].shape)  # Check if this contains the image
                 # print(out_model.mid_block_res_sample.shape) 
                 generated_image = out_model.mid_block_res_sample
-                generated_image = F.interpolate(generated_image, size=(256, 256), mode='bilinear', align_corners=False)
+                # generated_image = F.interpolate(input=generated_image.detach(), size=(256, 256), mode='bilinear', align_corners=False)
 
-                # # generated_image = upsample_block(generated_image)
-                # generated_image_resized = F.interpolate(
-                #     generated_image,
-                #     size=(256, 256),
-                #     mode="bilinear",
-                #     align_corners=False,
-                # )
-                print('gen image------',generated_image.shape)
+                generated_image = upsample_block(generated_image)
+                generated_image_resized = F.interpolate(
+                    generated_image,
+                    size=(256, 256),
+                    mode="bilinear",
+                    align_corners=False,
+                )
+                print("gen image------", generated_image_resized.shape)
                 print('image orig', images.shape)
-                loss = criterion(generated_image, images)   # F.mse_loss
+                loss = criterion(generated_image_resized, images)   # F.mse_loss
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
             epoch_loss += loss.item()
@@ -164,7 +180,15 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 # scaler.update()
                 optim.zero_grad(set_to_none=True)
         
-            del images, masks, text_emb, loss, t, generated_image
+            del (
+                images,
+                masks,
+                text_emb,
+                loss,
+                t,
+                generated_image,
+                generated_image_resized,
+            )
             torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
