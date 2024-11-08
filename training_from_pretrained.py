@@ -203,6 +203,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 generated_image_resized,
             )
             gc.collect()
+            torch.cuda.empty_cache()
             
             if (i + 1) % accumulation_steps == 0 or i == len(pbar):
                 scaler.unscale_(optim)
@@ -212,7 +213,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 scaler.update()
                 optim.zero_grad(set_to_none=True)
         
-            torch.cuda.empty_cache()
+            
         
         # Calculate and log average loss for the epoch
         avg_loss = epoch_loss / len(dataloader)
