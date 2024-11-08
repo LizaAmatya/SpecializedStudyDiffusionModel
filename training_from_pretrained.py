@@ -51,10 +51,17 @@ if not os.path.exists(loss_file_path):
 optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
-for group in optim.param_groups:
-    if 'state' in group:
-        group["state"] = {key: value.cpu() for key, value in group["state"].items()}
-    
+
+def move_optimizer_state_to_cpu(optimizer):
+    for group in optimizer.param_groups:
+        # Ensure 'state' is created (it won't exist before the first backward pass)
+        if "state" in group:
+            for param in group["params"]:
+                group["state"] = {
+                    key: value.cpu() for key, value in group["state"].items()
+                }
+
+
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
 criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss for MSE -- HuberLoss (SmoothL1: l1 + MSE loss)
 
@@ -182,6 +189,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
                 # optim.step()
                 scaler.step(optim)
+                move_optimizer_state_to_cpu(optim)
                 scaler.update()
                 optim.zero_grad(set_to_none=True)
         
