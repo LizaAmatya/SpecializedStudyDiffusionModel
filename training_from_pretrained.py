@@ -51,8 +51,8 @@ if not os.path.exists(loss_file_path):
 optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-5, weight_decay=1e-2, betas=(0.9, 0.999)
 )
-# criterion = torch.nn.MSELoss()  # For pixel-wise tasks
-criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss for MSE -- HuberLoss (SmoothL1: l1 + MSE loss)
+criterion = torch.nn.MSELoss()  # For pixel-wise tasks
+# criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss for MSE -- HuberLoss (SmoothL1: l1 + MSE loss)
 
 nn_model, optim, start_epoch, loss = load_latest_checkpoint(
     controlnet, optim, save_dir, device=device
