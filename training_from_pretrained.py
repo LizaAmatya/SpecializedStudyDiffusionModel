@@ -193,7 +193,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             # model_engine.step()
             scaler.scale(loss).backward()
             # loss.backward()
+            # out_model = out_model.to("cpu")
             del (
+                out_model,
                 images,
                 masks,
                 text_emb,
@@ -212,8 +214,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 scaler.step(optim)
                 scaler.update()
                 optim.zero_grad(set_to_none=True)
-        
-            
         
         # Calculate and log average loss for the epoch
         avg_loss = epoch_loss / len(dataloader)
