@@ -63,6 +63,7 @@ deepspeed_config = {
     },
     "train_batch_size": 4,
     "gradient_accumulation_steps": 4,
+    "disable_mpi": 'true'
 }
 
 
