@@ -188,8 +188,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 scaler.unscale_(optim)
                 torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
                 # optim.step()
-                scaler.step(optim)
                 move_optimizer_state_to_cpu(optim)
+                scaler.step(optim)
                 scaler.update()
                 optim.zero_grad(set_to_none=True)
         
