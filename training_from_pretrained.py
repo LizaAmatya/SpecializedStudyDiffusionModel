@@ -205,7 +205,8 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                             "----in here moved",
                         )
                         param = param.cpu()
-                        param.grad = param.grad.cpu()
+                        if param.grad is not None:
+                            param.grad = param.grad.cpu()
                     if 'state' in group:
                         print(
                             "----in here moved optim to cpu",
