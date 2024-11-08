@@ -163,9 +163,10 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                     size=(256, 256),
                     mode="bilinear",
                     align_corners=False,
-                )
+                ).to(dtype=torch.float32)
                 print("gen image------", generated_image_resized.shape)
                 print('image orig', images.shape)
+                images = images.to(dtype=torch.float32)
                 loss = criterion(generated_image_resized, images)   # F.mse_loss
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
                 
