@@ -114,7 +114,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         nn.ReLU(),
         # Final reduction to 3 channels (RGB)
         nn.Conv2d(320, 3, kernel_size=1),
-    )
+    ).to(device).to(dtype=torch.float16)
 
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
