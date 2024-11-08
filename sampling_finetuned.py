@@ -25,6 +25,10 @@ prompt = ["A myrtle warbler bird flying in a stormy weather",
           "A bird flying on a sunny and clear sky",
           "Phoenix rising from ashes"] 
 
+model_path = os.path.join(save_dir + "/model_epoch_0.pth")
+checkpoint = torch.load(f=model_path, map_location=device, weights_only=True)
+
+controlnet.load_state_dict(checkpoint["model_state_dict"])
 
 def sample_from_controlnet():
     controlnet.eval()
@@ -32,7 +36,6 @@ def sample_from_controlnet():
     image, mask = image.to(device), mask.to(device)
 
     # for image, mask, text_emb in test_dataloader:
-    image, mask = image.to(device), mask.to(device)
     mask_rgb = mask.repeat(1, 3, 1, 1)
 
     # Save each image to the real_images_dir to calculate FID scores
@@ -43,12 +46,13 @@ def sample_from_controlnet():
         img_pil = Image.fromarray(
             img.permute(1, 2, 0).cpu().numpy()
         )  # Convert tensor to PIL image
-        img_pil.save(os.path.join(real_images_dir, f"v2_real_image_{i}.png"))
+        img_pil.save(os.path.join(real_images_dir, f"v3_real_image_{i}.png"))
 
     # Generate images
     with torch.no_grad():
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-        pipe.enable_model_cpu_offload()
+        # pipe.enable_model_cpu_offload()
+        pipe.to('cpu')
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
@@ -80,7 +84,7 @@ def sample_from_controlnet():
     print(f"FID Score: {fid_score}")
     # # Log FID score
     with open("fid_log.txt", "a") as f:
-        f.write(f"v1 - FID: {fid_score:.4f}\n")
+        f.write(f"v3 - FID: {fid_score:.4f}\n")
 
 def main():
     sample_from_controlnet()

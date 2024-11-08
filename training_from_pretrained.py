@@ -193,15 +193,6 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             # model_engine.step()
             scaler.scale(loss).backward()
             # loss.backward()
-            
-            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
-                scaler.unscale_(optim)
-                torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
-                # optim.step()
-                scaler.step(optim)
-                scaler.update()
-                optim.zero_grad(set_to_none=True)
-        
             del (
                 images,
                 masks,
@@ -211,6 +202,16 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 generated_image,
                 generated_image_resized,
             )
+            gc.collect()
+            
+            if (i + 1) % accumulation_steps == 0 or i == len(pbar):
+                scaler.unscale_(optim)
+                torch.nn.utils.clip_grad_norm_(upsample_block.parameters(), max_norm=1.0)
+                # optim.step()
+                scaler.step(optim)
+                scaler.update()
+                optim.zero_grad(set_to_none=True)
+        
             torch.cuda.empty_cache()
         
         # Calculate and log average loss for the epoch
