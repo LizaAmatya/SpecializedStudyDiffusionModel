@@ -60,7 +60,7 @@ controlnet.to(device)
 
 
 def sample_from_controlnet():
-    image, mask, text_emb = next(iter(subset_dataloader))
+    image, mask, text_emb = next(iter(test_dataloader))
     image, mask = image.to(device), mask.to(device)
 
     mask_rgb = mask.repeat(1, 3, 1, 1)
@@ -82,7 +82,7 @@ def sample_from_controlnet():
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
-            prompt, num_inference_steps=500, generator=generator, image=mask_rgb
+            text_emb, num_inference_steps=500, generator=generator, image=mask_rgb
         ).images
 
     for i, gen_image in enumerate(generated_images):

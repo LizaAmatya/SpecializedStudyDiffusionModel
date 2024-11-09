@@ -118,7 +118,8 @@ test_dataloader = DataLoader(
 selected_indices = [0, 1, 6, 7]
 subset_test_dataset = Subset(test_dataset, selected_indices)
 
-subset_dataloader = DataLoader(subset_test_dataset, batch_size=3, shuffle=False)
+subset_dataloader = DataLoader(subset_test_dataset, batch_size=4, shuffle=False)
+print('len of subset dataloader', len(subset_dataloader))
 # Iterate over batches of data -- for training and sampling
 
 def main():
