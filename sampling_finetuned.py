@@ -44,10 +44,10 @@ pipe.to(device)
 #           "A bird flying on a sunny and clear sky",
 #           "Phoenix rising from ashes"] 
 prompt = [
-    "warbler",
-    "sparrow",
-    "mockingbird",
-    "phoenix"
+    "warbler on a branch",
+    "mockingbird on a sunny weather",
+    "a bird in a jungle"
+    "blue bird on a tree",
 ]
 
 torch.cuda.empty_cache()
@@ -60,7 +60,12 @@ controlnet.to(device)
 
 
 def sample_from_controlnet():
-    image, mask, text_emb = next(iter(test_dataloader))
+    selected_indices = [0, 1, 6,7]  # Example: Select the 1st, 6th, and 11th items
+
+    # Fetching the selected rows
+    selected_data = [test_dataloader[idx] for idx in selected_indices]
+
+    image, mask, text_emb = next(iter(selected_data))
     image, mask = image.to(device), mask.to(device)
 
     # for image, mask, text_emb in test_dataloader:
@@ -83,7 +88,7 @@ def sample_from_controlnet():
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
-            prompt, num_inference_steps=100, generator=generator, image=mask_rgb
+            prompt, num_inference_steps=500, generator=generator, image=mask_rgb
         ).images
 
     for i, gen_image in enumerate(generated_images):
