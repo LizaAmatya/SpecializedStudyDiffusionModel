@@ -1,7 +1,7 @@
 import gc
 import os
 import torch
-from data import test_dataloader
+from data import test_dataloader, test_dataset
 from diffusers import UniPCMultistepScheduler
 from PIL import Image
 from torch_fidelity import calculate_metrics
@@ -63,12 +63,11 @@ def sample_from_controlnet():
     selected_indices = [0, 1, 6,7]  # Example: Select the 1st, 6th, and 11th items
 
     # Fetching the selected rows
-    selected_data = [test_dataloader[idx] for idx in selected_indices]
+    selected_data = [test_dataset[idx] for idx in selected_indices]
 
     image, mask, text_emb = next(iter(selected_data))
     image, mask = image.to(device), mask.to(device)
 
-    # for image, mask, text_emb in test_dataloader:
     mask_rgb = mask.repeat(1, 3, 1, 1)
 
     # Save each image to the real_images_dir to calculate FID scores
