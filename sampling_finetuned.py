@@ -21,7 +21,7 @@ device = (
 )
 
 prompt = ["A myrtle warbler bird flying in a stormy weather", 
-          "Two birds on top of a tree", 
+          "A bird on top of a branch of a tree", 
           "A bird flying on a sunny and clear sky",
           "Phoenix rising from ashes"] 
 
@@ -51,8 +51,7 @@ def sample_from_controlnet():
     # Generate images
     with torch.no_grad():
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-        # pipe.enable_model_cpu_offload()
-        pipe.to('cpu')
+        pipe.enable_model_cpu_offload()
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
@@ -60,7 +59,7 @@ def sample_from_controlnet():
         ).images
 
     for i, gen_image in enumerate(generated_images):
-        gen_image.save(os.path.join(gen_images, f"v2_sample_{i}.png"))
+        gen_image.save(os.path.join(gen_images, f"v3_sample_{i}.png"))
         
     def check_image_size(image_path):
         img = Image.open(image_path)
