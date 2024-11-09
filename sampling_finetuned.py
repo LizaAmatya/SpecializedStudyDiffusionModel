@@ -60,7 +60,7 @@ controlnet.to(device)
 
 
 def sample_from_controlnet():
-    image, mask, text_emb = next(iter(test_dataloader))
+    image, mask, text_emb = next(iter(subset_dataloader))
     image, mask = image.to(device), mask.to(device)
 
     mask_rgb = mask.repeat(1, 3, 1, 1)
