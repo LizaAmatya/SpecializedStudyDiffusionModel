@@ -9,8 +9,8 @@ from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 
 
 save_dir = "weights/controlnet/"
-real_images_dir = "weights/controlnet/real_img/"
-gen_images = "weights/controlnet/gen_images/"
+real_images_dir = "weights/controlnet/finetuned/real_img/"
+gen_images = "weights/controlnet/finetuned/gen_images/"
 fid_log = os.path.join(save_dir, "fid.txt")
 
 model_id = "lllyasviel/control_v11p_sd15_seg"
@@ -31,10 +31,10 @@ device = (
 )
 pipe.to(device)
 
-prompt = ["A myrtle warbler bird flying in a stormy weather", 
-          "A bird on top of a branch of a tree", 
-          "A bird flying on a sunny and clear sky",
-          "Phoenix rising from ashes"] 
+prompt = ["A  mockingbird flying in a stormy weather", 
+          "A brewer black bird on top of a branch of a tree", ]
+        #   "A bird flying on a sunny and clear sky",
+        #   "Phoenix rising from ashes"] 
 
 torch.cuda.empty_cache()
 gc.collect()
