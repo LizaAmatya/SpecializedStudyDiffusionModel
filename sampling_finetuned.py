@@ -3,10 +3,9 @@ import os
 import torch
 from data import test_dataloader
 from diffusers import UniPCMultistepScheduler
-from training_from_pretrained import pipe
 from PIL import Image
 from torch_fidelity import calculate_metrics
-from diffusers import ControlNetModel
+from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 
 
 save_dir = "weights/controlnet/"
@@ -18,6 +17,11 @@ model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16, weights_only=True)
 controlnet.eval()
 
+pipe = StableDiffusionControlNetPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
+)
+
+
 device = (
     torch.device("cuda")
     if torch.cuda.is_available()
@@ -25,6 +29,7 @@ device = (
     if torch.backends.mps.is_available()
     else torch.device("cpu")
 )
+pipe.to(device)
 
 prompt = ["A myrtle warbler bird flying in a stormy weather", 
           "A bird on top of a branch of a tree", 
@@ -38,6 +43,7 @@ model_path = os.path.join(save_dir + "/model_epoch_0.pth")
 checkpoint = torch.load(f=model_path, map_location='cpu', weights_only=True)
 controlnet.load_state_dict(checkpoint["model_state_dict"], strict=False)
 controlnet.to(device)
+
 
 def sample_from_controlnet():
     image, mask, text_emb = next(iter(test_dataloader))
