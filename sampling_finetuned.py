@@ -31,6 +31,14 @@ device = (
 )
 pipe.to(device)
 
+# Sampled using non finetuned -- only controlnet
+# prompt = [
+#     "A  bird flying in a stormy weather",
+#     "Two birds on top of a branch of a tree",
+#   "A bird flying on a sunny and clear sky",
+#   "Phoenix rising from ashes"]
+
+# Using Finedtuned 
 prompt = ["A  mockingbird flying in a stormy weather", 
           "A brewer black bird on top of a branch of a tree", ]
         #   "A bird flying on a sunny and clear sky",
