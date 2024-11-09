@@ -2,15 +2,19 @@ import os
 import torch
 from data import test_dataloader
 from diffusers import UniPCMultistepScheduler
-from training_from_pretrained import controlnet, pipe
+from training_from_pretrained import pipe
 from PIL import Image
 from torch_fidelity import calculate_metrics
+from diffusers import ControlNetModel
 
 
 save_dir = "weights/controlnet/"
 real_images_dir = "weights/controlnet/real_img/"
 gen_images = "weights/controlnet/gen_images/"
 fid_log = os.path.join(save_dir, "fid.txt")
+
+model_id = "lllyasviel/control_v11p_sd15_seg"
+controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32, weights_only=True)
 
 device = (
     torch.device("cuda")
