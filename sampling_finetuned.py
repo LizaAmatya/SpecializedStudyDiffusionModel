@@ -15,7 +15,7 @@ gen_images = "weights/controlnet/gen_images/"
 fid_log = os.path.join(save_dir, "fid.txt")
 
 model_id = "lllyasviel/control_v11p_sd15_seg"
-controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32, weights_only=True)
+controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float16, weights_only=True)
 controlnet.eval()
 
 device = (
