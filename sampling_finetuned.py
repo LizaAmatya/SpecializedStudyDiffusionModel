@@ -39,8 +39,8 @@ pipe.to(device)
 #   "Phoenix rising from ashes"]
 
 # Using Finedtuned 
-prompt = ["A  mockingbird flying in a stormy weather", 
-          "A brewer black bird on top of a branch of a tree", ]
+prompt = ["A  mockingbird flying in a sunny weather", 
+          "A blue bird on top of a branch of a tree", ]
         #   "A bird flying on a sunny and clear sky",
         #   "Phoenix rising from ashes"] 
 
