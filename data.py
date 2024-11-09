@@ -2,7 +2,7 @@ from datasets import load_dataset
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel, CLIPTextModel
@@ -115,6 +115,10 @@ test_dataloader = DataLoader(
     num_workers=2,
     prefetch_factor=2,
 )
+selected_indices = [0, 1, 6, 7]
+subset_test_dataset = Subset(test_dataset, selected_indices)
+
+subset_dataloader = DataLoader(subset_test_dataset, batch_size=4, shuffle=False)
 # Iterate over batches of data -- for training and sampling
 
 def main():

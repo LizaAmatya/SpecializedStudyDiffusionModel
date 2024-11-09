@@ -1,7 +1,7 @@
 import gc
 import os
 import torch
-from data import test_dataloader, test_dataset
+from data import test_dataloader, subset_dataloader
 from diffusers import UniPCMultistepScheduler
 from PIL import Image
 from torch_fidelity import calculate_metrics
@@ -60,10 +60,7 @@ controlnet.to(device)
 
 
 def sample_from_controlnet():
-    selected_indices = [0, 1, 6,7]  # Example: Select the 1st, 6th, and 11th items
-
-    # Fetching the selected rows
-    selected_data = [test_dataset[idx] for idx in selected_indices]
+    selected_data = [test_dataset[idx] for idx in subset_dataloader]
 
     image, mask, text_emb = next(iter(selected_data))
     image, mask = image.to(device), mask.to(device)
