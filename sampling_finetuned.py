@@ -1,3 +1,4 @@
+import gc
 import os
 import torch
 from data import test_dataloader
@@ -15,6 +16,7 @@ fid_log = os.path.join(save_dir, "fid.txt")
 
 model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32, weights_only=True)
+controlnet.eval()
 
 device = (
     torch.device("cuda")
@@ -29,13 +31,14 @@ prompt = ["A myrtle warbler bird flying in a stormy weather",
           "A bird flying on a sunny and clear sky",
           "Phoenix rising from ashes"] 
 
+torch.cuda.empty_cache()
+gc.collect()
+
 model_path = os.path.join(save_dir + "/model_epoch_0.pth")
 checkpoint = torch.load(f=model_path, map_location=device, weights_only=True)
-
-controlnet.load_state_dict(checkpoint["model_state_dict"])
+controlnet.load_state_dict(checkpoint["model_state_dict"], strict=False)
 
 def sample_from_controlnet():
-    controlnet.eval()
     image, mask, text_emb = next(iter(test_dataloader))
     image, mask = image.to(device), mask.to(device)
 
