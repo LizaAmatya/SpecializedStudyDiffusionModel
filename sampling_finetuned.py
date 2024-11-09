@@ -44,10 +44,10 @@ pipe.to(device)
 #           "A bird flying on a sunny and clear sky",
 #           "Phoenix rising from ashes"] 
 prompt = [
-    "warbler on a branch",
-    "mockingbird on a sunny weather",
-    "a bird in a jungle"
-    "blue bird on a tree",
+    "Mockingbird - a realistic, high-detail image of a Northern Mockingbird with smooth gray feathers, a white underside, and faint streaks on its chest. Position the bird on a weathered branch, capturing its sharp, alert gaze as it looks sideways. Its wings should show the distinctive white patches that are revealed subtly when perched. Use the provided segmentation mask to clearly define the Mockingbird's form and positioning on the branch. Surround the bird with soft, natural light and muted green foliage, with hints of wildflowers in the background, to reflect a warm, mid-morning in a wooded area. The background should be slightly blurred, allowing the viewer to focus on the bird’s soft textures and nuanced coloring.",
+    "Blue Jay-  a realistic image of a Blue Jay with bright blue feathers, a white underbelly, and black markings around the face. The background should be a forest setting with some tree bark and fallen leaves. The segmentation mask should dictate the bird's shape and posture. Ensure the bird’s crest is visible, and include detail on feather texture, with some reflected light to add depth to the feathers.",
+    "hummingbird -  an image of a Ruby-throated Hummingbird, small and vibrant, with a shimmering green body and a red throat. The bird should be in mid-flight, hovering near a flower with wings blurred to suggest rapid motion. The segmentation mask defines the bird’s size and position. Show iridescent feathers with a sparkling effect in the sunlight, and keep the background as a soft-focus garden scene",
+    "Warbler - a vibrant, lifelike image of a Yellow Warbler with its bright yellow feathers and subtle orange streaks across the chest. The bird should be perched on a thin branch surrounded by lush green leaves, indicating a spring or early summer setting. Use the provided segmentation mask to define the Warbler's delicate shape and positioning on the branch. Display fine feather details with soft light filtering through the leaves, adding a warm glow to the scene. The background should be a slightly blurred, natural forest, enhancing the focus on the Warbler’s vivid colors",
 ]
 
 torch.cuda.empty_cache()
@@ -60,7 +60,7 @@ controlnet.to(device)
 
 
 def sample_from_controlnet():
-    image, mask, text_emb = next(iter(subset_dataloader))
+    image, mask, text_emb = next(iter(test_dataloader))
     image, mask = image.to(device), mask.to(device)
 
     mask_rgb = mask.repeat(1, 3, 1, 1)
