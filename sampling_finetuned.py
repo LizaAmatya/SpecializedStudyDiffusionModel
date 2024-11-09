@@ -35,8 +35,9 @@ torch.cuda.empty_cache()
 gc.collect()
 
 model_path = os.path.join(save_dir + "/model_epoch_0.pth")
-checkpoint = torch.load(f=model_path, map_location=device, weights_only=True)
+checkpoint = torch.load(f=model_path, map_location='cpu', weights_only=True)
 controlnet.load_state_dict(checkpoint["model_state_dict"], strict=False)
+controlnet.to(device)
 
 def sample_from_controlnet():
     image, mask, text_emb = next(iter(test_dataloader))
