@@ -6,6 +6,9 @@ from diffusers import UniPCMultistepScheduler
 from PIL import Image
 from torch_fidelity import calculate_metrics
 from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
+from torch import nn
+
+from diffusion_utils import visualize_feature_maps
 
 
 save_dir = "weights/controlnet/"
@@ -30,6 +33,7 @@ device = (
     else torch.device("cpu")
 )
 pipe.to(device)
+pipe.enable_attention_slicing()
 
 # Sampled using non finetuned -- only controlnet
 # prompt = [
@@ -58,6 +62,13 @@ checkpoint = torch.load(f=model_path, map_location='cpu', weights_only=True)
 controlnet.load_state_dict(checkpoint["model_state_dict"], strict=False)
 controlnet.to(device)
 
+feature_maps = {}
+
+
+def hook_fn(module, input, output):
+    """Hook to capture feature maps."""
+    feature_maps[module] = output
+
 
 def sample_from_controlnet():
     image, mask, text_emb = next(iter(test_dataloader))
@@ -74,7 +85,13 @@ def sample_from_controlnet():
             img.permute(1, 2, 0).cpu().numpy()
         )  # Convert tensor to PIL image
         img_pil.save(os.path.join(real_images_dir, f"v4_real_image_{i}.png"))
-
+    
+    for name, module in controlnet.named_modules():
+        print(f"!!!!Layer Name: {name} | Module: {module} ---")
+        if isinstance(module, nn.Conv2d) or isinstance(module, nn.ConvTranspose2d):
+            print(f"Registering hook to layer: {name}")
+            module.register_forward_hook(hook_fn)
+            
     # Generate images
     with torch.no_grad():
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
@@ -84,6 +101,7 @@ def sample_from_controlnet():
         generated_images = pipe(
             prompt, num_inference_steps=500, generator=generator, image=mask_rgb
         ).images
+        
 
     for i, gen_image in enumerate(generated_images):
         gen_image.save(os.path.join(gen_images, f"v4_sample_{i}.png"))
@@ -113,7 +131,12 @@ def sample_from_controlnet():
         f.write(f"v4 - FID: {fid_score:.4f}\n")
 
 def main():
+            
     sample_from_controlnet()
+    
+    for layer, feature_map in feature_maps.items():
+        print(f"Visualizing feature maps for layer: {layer}")
+        visualize_feature_maps(feature_map[0], str(layer))
 
 if __name__ == "__main__":
     main()

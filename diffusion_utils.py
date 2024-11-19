@@ -303,3 +303,14 @@ def load_latest_checkpoint(model, optimizer, save_dir, device='cuda'):
 
     print(f"Loaded checkpoint from epoch {epoch} at {checkpoint_path}")
     return model, optimizer, epoch, loss
+
+
+def visualize_feature_maps(feature_map, layer_name, num_channels=6):
+    print(f"Visualizing feature maps from: {layer_name}")
+    feature_map = feature_map.cpu().detach()
+    for i in range(min(num_channels, feature_map.size(0))):
+        plt.imshow(feature_map[i], cmap="viridis")
+        plt.title(f"Channel {i}")
+        plt.axis("off")
+        plt.show()
+        

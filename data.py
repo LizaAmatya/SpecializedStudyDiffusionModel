@@ -14,7 +14,7 @@ dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split='train')
 # Define a transformation to convert images to tensors
 transform = transforms.Compose(
     [
-        transforms.Resize((256, 256)),  # Resize images to 512x512
+        transforms.Resize((320, 320)),  # Resize images to 512x512
         transforms.ToTensor(),  # Convert image to PyTorch tensor
         transforms.RandomHorizontalFlip(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalize images Images already in range [0,1]
@@ -24,7 +24,7 @@ transform = transforms.Compose(
 
 transform_mask = transforms.Compose(
     [
-        transforms.Resize((256, 256)),  # Resize the mask
+        transforms.Resize((320, 320)),  # Resize the mask
         # transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
     ]
 )

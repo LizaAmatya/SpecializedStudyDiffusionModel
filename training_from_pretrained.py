@@ -117,6 +117,12 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
     #     )
     #     .to(device).to(dtype=torch.float32)
     # )
+    for name, param in nn_model.named_parameters():
+        if "" in name:
+            param.requires_grad = False  # Freeze low-level layers
+        else:
+            param.requires_grad = True  # Fine-tune higher layers
+
     upsample_block = nn.Sequential(
         # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
         nn.Conv2d(
