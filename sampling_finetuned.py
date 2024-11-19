@@ -1,7 +1,7 @@
 import gc
 import os
 import torch
-from data import test_dataloader, subset_dataloader
+from data import test_dataloader
 from diffusers import UniPCMultistepScheduler
 from PIL import Image
 from torch_fidelity import calculate_metrics
