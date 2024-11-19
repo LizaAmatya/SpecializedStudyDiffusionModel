@@ -115,16 +115,16 @@ test_dataloader = DataLoader(
     num_workers=2,
     prefetch_factor=2,
 )
-selected_indices = [0,20,2,3, 1,4,5,8, 6,9,10,11, 7,12,13,14 ]
-subset_test_dataset = Subset(test_dataset, selected_indices)
+# selected_indices = [0,20,2,3, 1,4,5,8, 6,9,10,11, 7,12,13,14 ]
+# subset_test_dataset = Subset(test_dataset, selected_indices)
 
-subset_dataloader = DataLoader(subset_test_dataset, batch_size=4, shuffle=False)
+# subset_dataloader = DataLoader(subset_test_dataset, batch_size=4, shuffle=False)
 # print('len of subset dataloader', len(subset_dataloader), type(subset_dataloader) )
 # Iterate over batches of data -- for training and sampling
 
 def main():
     # print("len of subset dataloader", len(subset_dataloader), type(subset_dataloader))
-    for batch in subset_dataloader:
+    for batch in test_dataloader:
 
         image_tensor, image_embeds, text_embeds = batch
 
