@@ -174,6 +174,9 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
             # model_engine.step()
             scaler.scale(loss).backward()
             # loss.backward()
+            for name, param in out_model.named_parameters():
+                if torch.isnan(param.grad).any():
+                    print(f"NaN gradient detected in parameter {name}")
             del (
                 out_model,
                 images,
