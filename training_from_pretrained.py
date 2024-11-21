@@ -87,7 +87,7 @@ def initialize_weights(model):
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
     upsample_block = nn.Sequential(
-        # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
+        # Upsample from [4, 1280, 4, 4] to [4, 1280, 320, 320] using F.interpolate
         nn.Conv2d(
             1280, 640, kernel_size=3, padding=1, stride=1
         ),  # Reduce channels from 1280 to 640
@@ -96,11 +96,11 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         # Depthwise separable convolution: reduces channels and memory usage
         nn.Conv2d(
             640, 320, kernel_size=3, padding=1, stride=1
-        ) # Reduce channels to 320
-        # nn.BatchNorm2d(320),
-        # nn.ReLU(),
-        # # Final reduction to 3 channels (RGB)
-        # nn.Conv2d(320, 3, kernel_size=1),
+        ), # Reduce channels to 320
+        nn.BatchNorm2d(320),
+        nn.ReLU(),
+        # Final reduction to 3 channels (RGB)
+        nn.Conv2d(320, 3, kernel_size=1),
     ).to(device).to(dtype=torch.float32)
     initialize_weights(upsample_block)
     
