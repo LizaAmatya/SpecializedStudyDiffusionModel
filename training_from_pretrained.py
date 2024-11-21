@@ -42,7 +42,6 @@ vae = pipe.vae
 
 gc.collect()
 
-save_dir = "weights/controlnet/"
 os.makedirs(save_dir, exist_ok=True)
 
 loss_file_path = os.path.join(save_dir, "loss_val.csv")
@@ -169,7 +168,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 print('image orig', images.shape)
                 loss = criterion(generated_image_resized, images)   # F.mse_loss
                 print(f"Epoch {ep+1}/{num_epochs}, Loss: {loss.item()}")
-                
+                     
             epoch_loss += loss.item()
             # model_engine.backward(loss)
             # model_engine.step()
