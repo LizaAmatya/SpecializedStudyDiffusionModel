@@ -13,6 +13,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.amp import GradScaler
 
+save_dir = "weights/controlnet/"
 
 device = (
     torch.device("cuda")
@@ -27,13 +28,16 @@ model_id = "lllyasviel/control_v11p_sd15_seg"
 controlnet = ControlNetModel.from_pretrained(model_id, torch_dtype=torch.float32)
 controlnet.to(device)
 
-# print('config',controlnet.config)
-
 # print('model', controlnet)
+# pipe = StableDiffusionControlNetPipeline.from_pretrained(
+#     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
+# )
+load_path = save_dir + "controlnet_pipeline"
+
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
-    "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
-)
-pipe.to(device)
+    load_path, torch_dtype=torch.float16
+).to(device)
+# pipe.to(device)
 vae = pipe.vae
 
 gc.collect()
@@ -51,19 +55,6 @@ if not os.path.exists(loss_file_path):
 optim = torch.optim.AdamW(
     controlnet.parameters(), lr=1e-4, weight_decay=1e-2, betas=(0.9, 0.999)
 )
-
-# deepspeed_config = {
-#     "optimizer": optim,
-#     "zero_optimization": {
-#         "stage": 2,
-#         "offload_optimizer": {
-#             "device": "cpu",
-#         },
-#     },
-#     "train_batch_size": 4,
-#     "gradient_accumulation_steps": 4,
-# }
-
 
 # criterion = torch.nn.MSELoss()  # For pixel-wise tasks
 criterion = nn.SmoothL1Loss()       # For better stability - showing Nan loss for MSE -- HuberLoss (SmoothL1: l1 + MSE loss)
@@ -96,33 +87,6 @@ def initialize_weights(model):
             nn.init.constant_(m.bias, 0)
 
 def train_model(nn_model, data_loader, start_epoch, n_epoch):
-    # upsample_block = (
-    #     nn.Sequential(
-    #         # Upsample the spatial dimensions from [4, 1280, 4, 4] to [4, 1280, 256, 256]
-    #         nn.ConvTranspose2d(
-    #             in_channels=1280,
-    #             out_channels=640,  # Keep 1280 channels for now (no change)
-    #             kernel_size=4,  # Kernel size to upscale
-    #             stride=2,  # Stride of 2 to double spatial dimensions
-    #             padding=1,  # Ensure the spatial dimensions are doubled
-    #         ),
-    #         # Reduce the number of channels from 1280 to 3 (for RGB images)
-    #         nn.Conv2d(
-    #             in_channels=640,
-    #             out_channels=3,  # Output channels: 3 (RGB)
-    #             kernel_size=1,  # Kernel size of 1 to reduce the channel count
-    #             stride=1,  # No change in spatial dimensions from this layer
-    #             padding=0,  # No padding necessary
-    #         ),
-    #     )
-    #     .to(device).to(dtype=torch.float32)
-    # )
-    for name, param in nn_model.named_parameters():
-        if "" in name:
-            param.requires_grad = False  # Freeze low-level layers
-        else:
-            param.requires_grad = True  # Fine-tune higher layers
-
     upsample_block = nn.Sequential(
         # Upsample from [4, 1280, 4, 4] to [4, 1280, 256, 256] using F.interpolate
         nn.Conv2d(
@@ -133,13 +97,26 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
         # Depthwise separable convolution: reduces channels and memory usage
         nn.Conv2d(
             640, 320, kernel_size=3, padding=1, stride=1
-        ),  # Reduce channels to 320
-        nn.BatchNorm2d(320),
-        nn.ReLU(),
-        # Final reduction to 3 channels (RGB)
-        nn.Conv2d(320, 3, kernel_size=1),
+        ) # Reduce channels to 320
+        # nn.BatchNorm2d(320),
+        # nn.ReLU(),
+        # # Final reduction to 3 channels (RGB)
+        # nn.Conv2d(320, 3, kernel_size=1),
     ).to(device).to(dtype=torch.float32)
     initialize_weights(upsample_block)
+    
+    for name, param in controlnet.named_parameters():
+        if "mid_block" in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+            
+    for name, module in nn_model.named_modules():
+        if 'mid_block' in name:
+            print(f"Layer name: {name}, Layer type: {type(module)}")
+            module.requires_grad = True  # Fine-tune higher layers
+        else:
+            module.requires_grad = False  # Freeze other layers
 
     for ep in range(start_epoch, num_epochs):
         epoch_loss = 0.0
@@ -184,7 +161,7 @@ def train_model(nn_model, data_loader, start_epoch, n_epoch):
                 generated_image = upsample_block(generated_image)
                 generated_image_resized = F.interpolate(
                     generated_image,
-                    size=(256, 256),
+                    size=(320, 320),
                     mode="bilinear",
                     align_corners=False,
                 )

@@ -2,7 +2,7 @@ from datasets import load_dataset
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel, CLIPTextModel

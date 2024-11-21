@@ -24,7 +24,6 @@ pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, torch_dtype=torch.float16
 )
 
-
 device = (
     torch.device("cuda")
     if torch.cuda.is_available()
@@ -32,6 +31,8 @@ device = (
     if torch.backends.mps.is_available()
     else torch.device("cpu")
 )
+
+
 pipe.to(device)
 pipe.enable_attention_slicing()
 
@@ -42,7 +43,7 @@ pipe.enable_attention_slicing()
 #   "A bird flying on a sunny and clear sky",
 #   "Phoenix rising from ashes"]
 
-# Using Finedtuned 
+# Using Finetuned 
 # prompt = ["A  mockingbird flying in a stormy weather", 
 #           "A blue bird on top of a branch of a tree", 
 #           "A bird flying on a sunny and clear sky",
@@ -95,7 +96,7 @@ def sample_from_controlnet():
     # Generate images
     with torch.no_grad():
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-        pipe.enable_model_cpu_offload()
+        # pipe.enable_model_cpu_offload(device=device)
 
         generator = torch.manual_seed(0)
         generated_images = pipe(
@@ -131,7 +132,20 @@ def sample_from_controlnet():
         f.write(f"v4 - FID: {fid_score:.4f}\n")
 
 def main():
-            
+    # print('controlnet layers', controlnet)
+    # save_path = save_dir + "controlnet_pipeline"
+    # pipe.save_pretrained(save_path)
+    # print(f"Pipeline saved to {save_path}")
+
+    # for name, module in controlnet.named_modules():
+    #     print(name)  # This will list all module names, adjust accordingly.
+    
+    load_path = save_dir + "controlnet_pipeline"
+
+    pipe = StableDiffusionControlNetPipeline.from_pretrained(
+        load_path, torch_dtype=torch.float16
+    ).to(device)
+
     sample_from_controlnet()
     
     for layer, feature_map in feature_maps.items():
