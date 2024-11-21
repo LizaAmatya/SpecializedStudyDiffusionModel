@@ -175,13 +175,13 @@ def pndm_sample(nn_model, n_samples, timesteps, alphas_cumprod, device="cuda"):
             # Reconstruct the next x using noise prediction
             pred_x0 = (x - sigma_t * pred_noise) / torch.sqrt(alpha_t)
 
-            # Use the difference between alpha_t and alpha_t_prev to correct x
-            x = (
-                torch.sqrt(alpha_t_prev) * pred_x0
-                + torch.sqrt(1 - alpha_t_prev) * pred_noise
-            )
-            
-            show_image((x[0]), title=f"After denoising step {t}")
+        # Use the difference between alpha_t and alpha_t_prev to correct x
+        x = (
+            torch.sqrt(alpha_t_prev) * pred_x0
+            + torch.sqrt(1 - alpha_t_prev) * pred_noise
+        )
+        
+        show_image((x[0]), title=f"After denoising step {i}")
 
     return x
 
