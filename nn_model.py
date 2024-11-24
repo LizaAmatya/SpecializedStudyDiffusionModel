@@ -18,7 +18,7 @@ class ContextUnet(nn.Module):
         self.h = height  # assume h == w. must be divisible by 4, so 28,24,20,16...
         
         # include clip embeds
-        self.clip_embedding_layer = nn.Linear(clip_embed_dim, 512)
+        # self.clip_embedding_layer = nn.Linear(clip_embed_dim, 512)
 
         # Initialize the initial convolutional layer
         self.init_conv = ResidualConvBlock(in_channels, n_feat, is_res=True)

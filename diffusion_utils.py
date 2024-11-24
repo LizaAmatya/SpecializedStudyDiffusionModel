@@ -12,7 +12,7 @@ from PIL import Image
 
 class ResidualConvBlock(nn.Module):
     def __init__(
-        self, in_channels: int, out_channels: int, is_res: bool = False
+        self, in_channels: int, out_channels: int, is_res: bool = True
     ) -> None:
         super().__init__()
 
@@ -28,8 +28,12 @@ class ResidualConvBlock(nn.Module):
                 in_channels, out_channels, 3, 1, 1
             ),  # 3x3 kernel with stride 1 and padding 1
             nn.BatchNorm2d(out_channels),  # Batch normalization
-            nn.GELU(),  # GELU activation function
+            # nn.GELU(),  # GELU activation function
+            nn.SiLU()
         )
+
+        # Initialize weights
+        self.apply(self.initialize_weights)
 
         # Second convolutional layer
         self.conv2 = nn.Sequential(
@@ -37,8 +41,18 @@ class ResidualConvBlock(nn.Module):
                 out_channels, out_channels, 3, 1, 1
             ),  # 3x3 kernel with stride 1 and padding 1
             nn.BatchNorm2d(out_channels),  # Batch normalization
-            nn.GELU(),  # GELU activation function
+            # nn.GELU(),  # GELU activation function
+            nn.SiLU()
         )
+        
+    def initialize_weights(self, module):
+        if isinstance(module, nn.Conv2d):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.BatchNorm2d):
+            nn.init.ones_(module.weight)
+            nn.init.zeros_(module.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # If using residual connection
@@ -126,29 +140,41 @@ class UnetDown(nn.Module):
 
 
 class EmbedFC(nn.Module):
-    def __init__(self, input_dim, emb_dim):
+    def __init__(self, input_dim, emb_dim, activation_fn=nn.GELU(), use_conv=False):
         super(EmbedFC, self).__init__()
         """
         This class defines a generic one layer feed-forward neural network for embedding input data of
         dimensionality input_dim to an embedding space of dimensionality emb_dim.
         """
         self.input_dim = input_dim
-        
-        # define the layers for the network
-        layers = [
-            nn.Linear(input_dim, emb_dim),
-            nn.GELU(),
-            nn.Linear(emb_dim, emb_dim),
-        ]
+        self.use_conv = use_conv
 
+        print('input dim', self.input_dim , emb_dim)
+        if use_conv:
+            # When using Conv2d, we assume the input is a 4D tensor (batch, channels, height, width)
+            layers = [
+                nn.Conv2d(input_dim, emb_dim, kernel_size=3, stride=1, padding=1),
+                activation_fn,
+                nn.Conv2d(emb_dim, emb_dim, kernel_size=3, stride=1, padding=1),
+            ]
+        else:
+            # Use fully connected layers for 1D input data (like text embedding)
+            layers = [
+                nn.Linear(input_dim, emb_dim),
+                activation_fn,
+                nn.Linear(emb_dim, emb_dim),
+            ]
+        
         # create a PyTorch sequential model consisting of the defined layers
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        # flatten the input tensor
-        x = x.view(-1, self.input_dim)
-        # apply the model layers to the flattened tensor
-        return self.model(x)
+        if self.use_conv:
+            return self.model(x)  # For 2D data, apply convolutions
+        else:
+            # Flatten the input tensor if it's 2D
+            x = x.view(-1, self.input_dim)
+            return self.model(x)  # For 1D data, apply FC layers
 
 
 def unorm(x):
@@ -251,7 +277,7 @@ def save_checkpoint(model, optimizer, epoch, loss, save_dir):
     print(f"Checkpoint saved at epoch {epoch}: {checkpoint_path}")
     
     
-def load_latest_checkpoint(model, optimizer, save_dir):
+def load_latest_checkpoint(model, optimizer, save_dir, device='cuda'):
     checkpoint_files = [
         f
         for f in os.listdir(save_dir)
@@ -268,7 +294,7 @@ def load_latest_checkpoint(model, optimizer, save_dir):
     latest_checkpoint = checkpoint_files[-1]  # Get the latest one
 
     checkpoint_path = os.path.join(save_dir, latest_checkpoint)
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -277,3 +303,14 @@ def load_latest_checkpoint(model, optimizer, save_dir):
 
     print(f"Loaded checkpoint from epoch {epoch} at {checkpoint_path}")
     return model, optimizer, epoch, loss
+
+
+def visualize_feature_maps(feature_map, layer_name, num_channels=6):
+    print(f"Visualizing feature maps from: {layer_name}")
+    feature_map = feature_map.cpu().detach()
+    for i in range(min(num_channels, feature_map.size(0))):
+        plt.imshow(feature_map[i], cmap="viridis")
+        plt.title(f"Channel {i}")
+        plt.axis("off")
+        plt.show()
+        

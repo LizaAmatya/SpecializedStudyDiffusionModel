@@ -1,34 +1,20 @@
 from datasets import load_dataset
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
-import numpy as np
-
-
-# Checking CUDA
-
-# print('Using CUDA-------------',torch.cuda.is_available(), torch.cuda.device_count())
+from transformers import CLIPProcessor, CLIPModel, CLIPTextModel
+# import numpy as np
 
 
 dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split='train')
 
-# print('----here', dataset)
-# for example in dataset["train"].select(range(5)):
-#     image = example["image"]  # Adjust based on your dataset's feature names
-    
-#     print('image', image)
-
-
-# print('dataset', dataset['train'][:10])
-
 # Define a transformation to convert images to tensors
 transform = transforms.Compose(
     [
-        # transforms.Grayscale(num_output_channels=3),
-        transforms.Resize((512, 512)),  # Resize images to 512x512
+        transforms.Resize((320, 320)),  # Resize images to 512x512
         transforms.ToTensor(),  # Convert image to PyTorch tensor
         transforms.RandomHorizontalFlip(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalize images Images already in range [0,1]
@@ -38,8 +24,8 @@ transform = transforms.Compose(
 
 transform_mask = transforms.Compose(
     [
-        transforms.Resize((512, 512), interpolation=Image.NEAREST),  # Resize the mask
-        transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
+        transforms.Resize((320, 320)),  # Resize the mask
+        # transforms.ToTensor(),  # Convert the mask to a PyTorch tensor (values between 0 and 1)
     ]
 )
 
@@ -59,12 +45,13 @@ class BirdGenDataset(Dataset):
         # self.clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
+    
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        data = self.dataset["train"][idx]
+        data = self.dataset[idx]
         image = data["image"]
         
         # image_array = np.array(image)
@@ -78,73 +65,81 @@ class BirdGenDataset(Dataset):
             image = Image.open(image)
             
         if self.transform_mask is not None:
-            seg_mask_img = data['segmentation_mask']
-            mask = Image.open(seg_mask_img).convert("L")  # Convert to grayscale
-            mask = self.transform_mask(mask)
-            mask = mask.long()  # Ensure mask is long tensor
-            return image, label, mask
-
+            seg_mask_img = data['segmentation_mask']    # seg mask already in grayscale
+            mask = self.transform_mask(seg_mask_img)
+            mask = np.array(mask)
+            
+            # print('is there any zero', np.any(mask))
+            
+            # plt.imshow(mask, cmap='gray')  # Use 'gray' colormap for masks
+            # plt.show()
+            
+            mask = torch.from_numpy(mask).long()  # Convert to PyTorch tensor and use long data type
+            mask = mask.unsqueeze(0)  # Add a channel dimension
+            
+            # print("Min:", torch.min(mask))
+            # print("Max:", torch.max(mask))
+            # print("Mean:", torch.mean(mask.float()))
+                
         # If it's already a PIL image, no need to open it, transform it 
         image_tensor = self.transform(image)
         
-        # Check the range
-        print("Min pixel value:", torch.min(image_tensor))
-        print("Max pixel value:", torch.max(image_tensor))
-        print("imgae+++++++", image_tensor.shape, type(image_tensor), image_tensor.dtype)
-        
         # Process the label into a CLIP embedding
-        # Initialize CLIP tokenizer and text model for encoding captions
+        inputs = self.processor(text=label, images=image, return_tensors="pt", padding=True)
         
-        # text_inputs = self.processor.process([label])  # Tokenize the label
-        # inputs = self.processor(text=label, images=images, return_tensors="pt", padding=True)
-        # Without text and seg mask
-        
-        image_inputs = self.processor(images=image, return_tensors="pt", padding=True, do_rescale=False)
-
-        # print('inputs', inputs)
-        
+        text_inputs = inputs['input_ids']
+        # pixel_vals = inputs['pixel_values']
+        # print('text inputs', text_inputs.shape)
+        # image_inputs = inputs['pixel_values']
         with torch.no_grad():
-            # outputs = self.clip_model(**inputs)   For both text and image input
-            # text_embeddings = self.clip_model.get_text_features(**text_inputs)
-            image_embeddings = self.clip_model.get_image_features(**image_inputs)
-
-        # Feed embeddings into your diffusion model or other components
-        # diffusion_model_output = diffusion_model(images, text_embeddings, image_embeddings)
-
-        print('------text and image embeds',  image_embeddings)
-        # return image, text_features, seg_mask
-        return image_tensor, image_embeddings
-
+            text_embeddings = self.clip_model.get_text_features(input_ids=text_inputs)
+            # image_embeddings = self.clip_model.get_image_features(pixel_values=pixel_vals)
+        # print('------text and image embeds',  text_embeddings.shape)
+       
+        return image_tensor, mask, text_embeddings
+    
 
 # Wrap Hugging Face dataset into a PyTorch Dataset
-bird_ds = BirdGenDataset(dataset, transform)    # without seg mask
+bird_ds = BirdGenDataset(dataset, transform, transform_mask=transform_mask)
 
-# Conditional with segmentation mask
-# bird_ds = BirdGenDataset(dataset, transform, transform_mask=transform_mask)  # withseg mask
-
-print("dataset----", bird_ds[0])  # transformed image and label tensor data
-
+batch_size = 4
 # Create DataLoader to load batches of data
-dataloader = DataLoader(bird_ds, batch_size=16, shuffle=True)
+dataloader = DataLoader(bird_ds, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=2, prefetch_factor=2)
 
+test_dataset = load_dataset("dpdl-benchmark/caltech_birds2011", split="test")
+test_dataloader = DataLoader(
+    bird_ds,
+    batch_size=batch_size,
+    shuffle=False,
+    pin_memory=True,
+    num_workers=2,
+    prefetch_factor=2,
+)
+# selected_indices = [0,20,2,3, 1,4,5,8, 6,9,10,11, 7,12,13,14 ]
+# subset_test_dataset = Subset(test_dataset, selected_indices)
+
+# subset_dataloader = DataLoader(subset_test_dataset, batch_size=4, shuffle=False)
+# print('len of subset dataloader', len(subset_dataloader), type(subset_dataloader) )
 # Iterate over batches of data -- for training and sampling
-# Unconditional sampling
-for batch in dataloader:
 
-    # Example: load and transform the images and move to gpu
-    print('inside loop', batch) 
-    # images, labels, seg_mask = batch      # with context 
-    
-    # without context
-    images_tensor, image_embeds = batch
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+def main():
+    # print("len of subset dataloader", len(subset_dataloader), type(subset_dataloader))
+    for batch in test_dataloader:
 
-    print('----------device', device)
-    image_batch_gpu = images_tensor.to(device)
-    image_embeds_gpu = image_embeds.to(device)
-    # image_batch_gpu = images.to("cuda" if torch.cuda.is_available() else "cpu")
+        image_tensor, image_embeds, text_embeds = batch
 
-    print('batch images shape ',image_batch_gpu.shape)
-    print('image embed shape', image_embeds.shape)
+#     image_batch_gpu = image_tensor.to(device)
+#     image_embeds_gpu = image_embeds.to(device)
+#     text_embeds_gpu = text_embeds.to(device)
 
-    break
+#     print('batch images shape ',image_tensor.shape)
+#     print('image embed shape', image_embeds.shape)
+#     print('text embed shape', text_embeds.shape)
+
+#     break
+
+    # del image_tensor, text_embeds, image_embeds
+    # torch.cuda.empty_cache()
+
+if __name__ == "__main__":
+    main()

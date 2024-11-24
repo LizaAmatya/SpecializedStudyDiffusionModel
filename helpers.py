@@ -4,9 +4,14 @@ import torch
 
 def show_image(image_tensor, title=None):
     """Helper function to visualize a single image."""
+
+    print('image tensor', type(image_tensor))
     image = image_tensor.cpu().detach().numpy()
     image = image.transpose(1, 2, 0)  # Convert to HWC format for display
-    plt.show(image)
+    print('image', image.shape, image.max(), image.min())
+    # Clip the values to [0, 1] range for valid image display
+    image = (image - image.min()) / (image.max() - image.min())
+    plt.imshow(image)
     # plt.imshow((image*0.5 +0.5))  # Normalize to [0, 1] for display
     if title:
         plt.title(title)
@@ -29,5 +34,17 @@ def cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02, device="cuda
 
 
 # Example usage
-timesteps = 1000
-beta_schedule = cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02)
+# timesteps = 1000
+# beta_schedule = cosine_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02)
+
+class MonitorParameters:
+    def __init__(self):
+        self.data = []
+
+    def __call__(self, module, input, output):
+        # Get parameters
+        for name, param in module.named_parameters():
+            if param.requires_grad:
+                mean = param.data.mean().item()
+                std = param.data.std().item()
+                self.data.append({"layer": name, "mean": mean, "std": std})

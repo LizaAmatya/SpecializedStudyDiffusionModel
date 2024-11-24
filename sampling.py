@@ -6,12 +6,30 @@ import tqdm
 from diffusion_utils import *
 import torch.nn.functional as F
 from helpers import show_image
-from nn_model import nn_model, save_dir, device,a_t, ab_t, b_t, timesteps, height 
+# from nn_model import nn_model, save_dir, device
+from diff_model import nn_model, save_dir, device
 import os
 from matplotlib.animation import FuncAnimation, PillowWriter
 from torchvision.utils import make_grid
 
 matplotlib.use('Qt5Agg')
+
+timesteps = 500
+n_feat = 64
+batch_size = 16
+in_channels = 3
+height = 128
+
+beta1 = 1e-4
+beta2 = 0.02
+n_epoch = 32
+lrate = 1e-4
+
+# construct DDPM noise schedule
+b_t = (beta2 - beta1) * torch.linspace(0, 1, timesteps + 1, device=device) + beta1
+a_t = 1 - b_t
+ab_t = torch.cumsum(a_t.log(), dim=0).exp()
+ab_t[0] = 1
     
 def denoise_add_noise(x, t, pred_noise, z=None):
     if z is None:
@@ -64,7 +82,7 @@ def sample_ddpm(n_sample, save_rate=20):
         # sample some random noise to inject back in. For i = 1, don't add back in noise
         z = torch.randn_like(samples) if i > 1 else 0
         eps = nn_model(samples, t)  # predict noise e_(x_t,t)
-        samples = torch.clamp(samples, 0, 1)
+        # samples = torch.clamp(samples, 0, 1)
         print('++++++++value of eps',eps.min(), eps.max(), eps.mean().item())
 
         if torch.isnan(eps).any() or torch.isinf(eps).any():
@@ -133,7 +151,7 @@ def sample_ddim_context(n_sample, context, n=20):
 
 
 # visualize samples
-samples, intermediate_ddpm = sample_ddim(1)
+samples, intermediate_ddpm = sample_ddpm(1)
 # samples_resized = F.interpolate(
 #     samples, size=(256, 256), mode="bilinear", align_corners=False
 # )
@@ -152,3 +170,4 @@ samples, intermediate_ddpm = sample_ddim(1)
 # generated_image = ...
 # ssim_score = ssim(real_image, generated_image, multichannel=True)
 # print(f"SSIM: {ssim_score}")
+
